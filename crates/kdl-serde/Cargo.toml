@@ -28,8 +28,13 @@ miette = ["kdl-span/miette", "kdl-load/miette", "kdl-nodes/miette"]
 workspace = true
 
 [dev-dependencies]
+divan = "0.1"
 insta.workspace = true
 miette = { workspace = true, features = ["fancy-no-backtrace"] }
 proptest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 tempfile.workspace = true
+
+[[bench]]
+name = "kdl"
+harness = false

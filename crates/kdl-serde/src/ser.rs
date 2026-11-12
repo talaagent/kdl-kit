@@ -238,9 +238,14 @@ impl Lower<'_> {
             }
             return Ok(());
         }
-        let as_nodes: Vec<KdlNode> = items
+        // Which nodes keep their own name in the dash form (`$name` bodies).
+        let named: Vec<bool> = items
             .iter()
-            .map(|i| self.node(name, i.clone()))
+            .map(|i| matches!(i, Out::Body(b) if b.name.is_some()))
+            .collect();
+        let mut as_nodes: Vec<KdlNode> = items
+            .into_iter()
+            .map(|i| self.node(name, i))
             .collect::<Result<_>>()?;
         // Repeated nodes read back as elements unless one is empty (an empty
         // field reads as an empty sequence) or a lone node looks like a
@@ -248,7 +253,14 @@ impl Lower<'_> {
         let ambiguous = as_nodes.iter().any(node_is_empty)
             || (as_nodes.len() == 1 && looks_like_dash_block(&as_nodes[0]));
         if ambiguous {
-            nodes.push(self.dash_block(name, items)?);
+            for (node, named) in as_nodes.iter_mut().zip(named) {
+                if !named {
+                    node.set_name("-");
+                }
+            }
+            let mut block = KdlNode::new(name);
+            set_children(&mut block, as_nodes);
+            nodes.push(block);
         } else {
             nodes.extend(as_nodes);
         }
@@ -339,9 +351,13 @@ impl Lower<'_> {
         let Out::Variant(_, content) = out else {
             return Err(Error::custom_internal("variant"));
         };
-        let inner_variant = matches!(*content, Out::Variant(..) | Out::Raw(_));
-        let mut node = self.node(name, (*content).clone())?;
-        if node.ty().is_none() && !inner_variant {
+        let annotated = match &*content {
+            Out::Variant(..) | Out::Raw(_) | Out::Typed(..) => true,
+            Out::Body(b) => b.ty.is_some(),
+            _ => false,
+        };
+        if !annotated {
+            let mut node = self.node(name, *content)?;
             node.set_ty(variant);
             return Ok(node);
         }

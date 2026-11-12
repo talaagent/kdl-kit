@@ -1053,14 +1053,20 @@ impl<'a> Fields<'a> {
     ) -> Result<()> {
         let rest = fields.contains(&"$children");
         let mut groups: Vec<(&'a str, Vec<NodeRef<'a>>)> = Vec::new();
+        // Index groups by name so wide blocks stay linear.
+        let mut index: std::collections::HashMap<&'a str, usize> =
+            std::collections::HashMap::with_capacity(children.len().min(64));
         for c in children {
             let name = c.name();
             if rest && !fields.contains(&name) {
                 continue;
             }
-            match groups.iter_mut().find(|(n, _)| *n == name) {
-                Some((_, g)) => g.push(*c),
-                None => groups.push((name, vec![*c])),
+            match index.get(name) {
+                Some(&i) => groups[i].1.push(*c),
+                None => {
+                    index.insert(name, groups.len());
+                    groups.push((name, vec![*c]));
+                }
             }
         }
         for (name, nodes) in groups {
