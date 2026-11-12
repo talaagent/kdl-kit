@@ -1,0 +1,27 @@
+[package]
+name = "kdl-pretty-cli"
+description = "kdl-pretty: format KDL v2 files in place or check them (treefmt-friendly)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "kdl-pretty"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+kdl.workspace = true
+kdl-pretty.workspace = true
+miette = { workspace = true, features = ["fancy"] }
+pico-args.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true
