@@ -1,0 +1,13 @@
+---
+source: tests/errors.rs
+expression: rendered
+---
+kdl_serde::duplicate_node
+
+  × duplicate node `host`; it takes a single value at <dir>/b.kdl:1:1
+   ╭─[<dir>/b.kdl:1:1]
+ 1 │ host "b"
+   · ──┬─
+   ·   ╰── given again here
+   ╰────
+  help: first given in <dir>/a.kdl; remove one of them, or make the field a `Vec`

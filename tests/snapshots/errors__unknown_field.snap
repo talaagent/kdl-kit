@@ -1,0 +1,14 @@
+---
+source: tests/errors.rs
+expression: render(&e)
+---
+kdl_serde::unknown_field
+
+  × unknown field `prot`, expected one of `host`, `port` at config.kdl:2:1
+   ╭─[config.kdl:2:1]
+ 1 │ host "localhost"
+ 2 │ prot 8080
+   · ──┬─
+   ·   ╰── unknown field
+   ╰────
+  help: did you mean `port`?

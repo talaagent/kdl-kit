@@ -1,0 +1,15 @@
+---
+source: tests/errors.rs
+expression: render(&e)
+---
+kdl_serde::parse
+
+  × Unexpected newline in single-line quoted string at config.kdl:1:6
+   ╭─[config.kdl:1:6]
+ 1 │ host "unterminated
+   ·      ──────┬──────
+   ·            ╰── not quoted string
+ 2 │ port 1
+   ╰────
+  help: You can make a string multi-line by wrapping it in '"""', with a newline immediately after
+        the opening quotes.

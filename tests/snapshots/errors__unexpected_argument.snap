@@ -1,0 +1,13 @@
+---
+source: tests/errors.rs
+expression: render(&e)
+---
+kdl_serde::unknown_field
+
+  × unexpected argument; this node takes 1 argument at config.kdl:3:14
+   ╭─[config.kdl:3:14]
+ 2 │ server host="h" port=1
+ 3 │ member "ada" "lovelace" role="admin"
+   ·              ─────┬────
+   ·                   ╰── unexpected argument
+   ╰────

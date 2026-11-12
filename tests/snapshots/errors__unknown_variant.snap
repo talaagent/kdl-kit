@@ -1,0 +1,14 @@
+---
+source: tests/errors.rs
+expression: render(&e)
+---
+kdl_serde::unknown_variant
+
+  × unknown variant `admn`, expected one of `admin`, `viewer` at config.kdl:3:14
+   ╭─[config.kdl:3:14]
+ 2 │ server host="h" port=1
+ 3 │ member "ada" role="admn"
+   ·              ─────┬─────
+   ·                   ╰── `admn` is not a variant
+   ╰────
+  help: did you mean `admin`?

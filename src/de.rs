@@ -945,6 +945,8 @@ struct Key<'a> {
     name: Cow<'a, str>,
     src: &'a Arc<Source>,
     span: SourceSpan,
+    /// The key is a property, so errors say "property", not "field".
+    prop: bool,
 }
 
 /// What a key's value deserializes from.
@@ -979,6 +981,7 @@ impl<'a> Fields<'a> {
                     name: Cow::Owned(name),
                     src,
                     span: arg.span(),
+                    prop: false,
                 };
                 out.push((key, Val::Value(value)));
             } else {
@@ -990,6 +993,7 @@ impl<'a> Fields<'a> {
                 name: Cow::Borrowed("$args"),
                 src,
                 span: n.name_span(),
+                prop: false,
             };
             out.push((key, Val::Args(rest)));
         }
@@ -998,6 +1002,7 @@ impl<'a> Fields<'a> {
                 name: Cow::Borrowed("$name"),
                 src,
                 span: n.name_span(),
+                prop: false,
             };
             out.push((key, Val::Str(StrDe::new(n.name(), src, n.name_span()))));
         }
@@ -1006,6 +1011,7 @@ impl<'a> Fields<'a> {
                 name: Cow::Borrowed("$type"),
                 src,
                 span: ty.span(),
+                prop: false,
             };
             out.push((key, Val::Str(StrDe::new(ty.value(), src, ty.span()))));
         }
@@ -1033,6 +1039,7 @@ impl<'a> Fields<'a> {
                 name,
                 src,
                 span: prop.span(),
+                prop: true,
             };
             out.push((k, Val::Value(ValueDe::new(prop, src))));
         }
@@ -1090,6 +1097,7 @@ impl<'a> Fields<'a> {
                 name: Cow::Borrowed(name),
                 src: first.src,
                 span: first.name_span(),
+                prop: false,
             };
             out.push((key, Val::Group(GroupDe { nodes })));
         }
@@ -1115,6 +1123,7 @@ impl<'a> Fields<'a> {
             name: Cow::Borrowed("$children"),
             src,
             span,
+            prop: false,
         };
         out.push((key, Val::Block(BlockDe::new(rest, src, span))));
     }
@@ -1128,8 +1137,11 @@ impl<'a> MapAccess<'a> for Fields<'a> {
             return Ok(None);
         };
         self.value = Some(value);
+        let prop = key.prop;
         let de = StrDe::new_cow(key.name, key.src, key.span);
-        seed.deserialize(de).map(Some)
+        seed.deserialize(de)
+            .map(Some)
+            .map_err(|e| if prop { e.for_property() } else { e })
     }
 
     fn next_value_seed<V: DeserializeSeed<'a>>(&mut self, seed: V) -> Result<V::Value> {

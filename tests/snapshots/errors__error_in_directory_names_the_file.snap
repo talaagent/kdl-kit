@@ -1,0 +1,13 @@
+---
+source: tests/errors.rs
+expression: rendered
+---
+kdl_serde::unknown_variant
+
+  × unknown variant `chief`, expected one of `admin`, `viewer` at <dir>/team/bob.kdl:2:14
+   ╭─[<dir>/team/bob.kdl:2:14]
+ 1 │ // bob
+ 2 │ member "bob" role="chief"
+   ·              ──────┬─────
+   ·                    ╰── `chief` is not a variant
+   ╰────

@@ -184,6 +184,17 @@ impl Error {
         self
     }
 
+    /// Rewords an unknown-field error raised for a property key.
+    pub(crate) fn for_property(mut self) -> Self {
+        if self.inner.kind == ErrorKind::UnknownField {
+            if let Some(rest) = self.inner.message.strip_prefix("unknown field") {
+                self.inner.message = format!("unknown property{rest}");
+                self.inner.label = Some("unknown property".to_owned());
+            }
+        }
+        self
+    }
+
     pub(crate) fn has_span(&self) -> bool {
         self.inner.span.is_some()
     }
@@ -427,31 +438,46 @@ impl serde::de::Error for Error {
     }
 
     fn unknown_field(field: &str, expected: &'static [&'static str]) -> Self {
-        let shown: Vec<&str> = expected
+        if field.starts_with('$') {
+            let takes = expected
+                .iter()
+                .filter(|f| {
+                    f.strip_prefix('$')
+                        .is_some_and(|i| i.parse::<usize>().is_ok())
+                })
+                .count();
+            let takes = match takes {
+                0 => "no arguments".to_owned(),
+                1 => "1 argument".to_owned(),
+                n => format!("{n} arguments"),
+            };
+            return Self::new(
+                ErrorKind::UnknownField,
+                format!("unexpected argument; this node takes {takes}"),
+            )
+            .with_label("unexpected argument");
+        }
+        let names: Vec<&str> = expected
             .iter()
-            .copied()
             .filter(|f| !f.starts_with('$'))
+            .map(|f| f.strip_prefix('@').unwrap_or(f))
             .collect();
-        let what = match field.as_bytes().first() {
-            Some(b'$') => format!("unexpected argument {}", &field[1..]),
-            _ => format!("unknown field `{}`", display_field(field)),
-        };
         let mut e = Self::new(
             ErrorKind::UnknownField,
-            format!("{what}, expected {}", one_of(&shown)),
+            format!("unknown field `{field}`, expected {}", one_of(&names)),
         );
-        if !field.starts_with('$') {
-            if let Some(help) = did_you_mean(field, &shown) {
-                e = e.with_help(help);
-            }
+        if let Some(help) = did_you_mean(field, &names) {
+            e = e.with_help(help);
         }
         e
     }
 
     fn missing_field(field: &'static str) -> Self {
         let what = match field.as_bytes().first() {
-            Some(b'$') if field == "$args" => "missing arguments".to_owned(),
-            Some(b'$') => format!("missing argument {}", &field[1..]),
+            Some(b'$') => match field[1..].parse::<usize>() {
+                Ok(i) => format!("missing argument {}", i + 1),
+                Err(_) => format!("missing `{field}`"),
+            },
             Some(b'@') => format!("missing property `{}`", &field[1..]),
             _ => format!("missing field `{field}`"),
         };

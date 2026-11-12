@@ -1,0 +1,13 @@
+---
+source: tests/errors.rs
+expression: render(&e)
+---
+kdl_serde::invalid_value
+
+  × invalid value: integer `70000`, expected u16 at config.kdl:2:6
+   ╭─[config.kdl:2:6]
+ 1 │ host "h"
+ 2 │ port 70000
+   ·      ──┬──
+   ·        ╰── expected u16
+   ╰────

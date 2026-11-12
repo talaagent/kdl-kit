@@ -1,0 +1,12 @@
+---
+source: tests/errors.rs
+expression: render(&e)
+---
+kdl_serde::missing_field
+
+  × missing field `server` at config.kdl:1:1
+   ╭─[config.kdl:1:1]
+ 1 │ name "acme"
+   · ▲
+   · ╰── in this document
+   ╰────

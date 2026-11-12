@@ -1,0 +1,14 @@
+---
+source: tests/errors.rs
+expression: render(&e)
+---
+kdl_serde::invalid_type
+
+  × expected a value for `host`, found none at config.kdl:1:1
+   ╭─[config.kdl:1:1]
+ 1 │ host
+   · ──┬─
+   ·   ╰── missing value
+ 2 │ port 1
+   ╰────
+  help: give it an argument: `host <value>`

@@ -1,0 +1,13 @@
+---
+source: tests/errors.rs
+expression: render(&e)
+---
+kdl_serde::invalid_type
+
+  × invalid type: string "eighty", expected u16 at config.kdl:2:6
+   ╭─[config.kdl:2:6]
+ 1 │ host "h"
+ 2 │ port "eighty"
+   ·      ────┬───
+   ·          ╰── expected u16
+   ╰────

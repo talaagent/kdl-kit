@@ -1,0 +1,14 @@
+---
+source: tests/errors.rs
+expression: render(&e)
+---
+kdl_serde::unknown_field
+
+  × unknown property `rol`, expected `role` at config.kdl:3:27
+   ╭─[config.kdl:3:27]
+ 2 │ server host="h" port=1
+ 3 │ member "ada" role="admin" rol="x"
+   ·                           ───┬───
+   ·                              ╰── unknown property
+   ╰────
+  help: did you mean `role`?

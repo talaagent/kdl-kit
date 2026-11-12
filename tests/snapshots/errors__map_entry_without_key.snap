@@ -1,0 +1,14 @@
+---
+source: tests/errors.rs
+expression: render(&e)
+---
+kdl_serde::invalid_type
+
+  × expected a key after `site` at config.kdl:2:1
+   ╭─[config.kdl:2:1]
+ 1 │ site "a" { host "h"; port 1 }
+ 2 │ site { host "h"; port 2 }
+   · ──┬─
+   ·   ╰── missing key
+   ╰────
+  help: write map entries as `site <key> <value>` or `site <key> { … }`

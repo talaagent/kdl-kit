@@ -1,0 +1,14 @@
+---
+source: tests/errors.rs
+expression: render(&e)
+---
+kdl_serde::missing_field
+
+  × missing field `port` at config.kdl:2:1
+   ╭─[config.kdl:2:1]
+ 1 │ name "acme"
+ 2 │ server {
+   · ───┬──
+   ·    ╰── in this node
+ 3 │   host "h"
+   ╰────
