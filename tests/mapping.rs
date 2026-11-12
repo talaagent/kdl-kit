@@ -712,3 +712,56 @@ fn quoted_names() {
     assert_eq!(text, "\"1st\" 2\n\"has space\" 1\n\"true\" 3\n");
     assert_eq!(de::<BTreeMap<String, i32>>(&text), m);
 }
+
+#[test]
+fn alternative_spellings_from_the_readme() {
+    let t: Team = de("member { - ada; - { $0 x } }");
+    assert_eq!(t.member[0].name, "ada");
+    let s: Sites = de("site { eu { region r } }");
+    assert_eq!(s.site["eu"].region, "r");
+    #[derive(Debug, PartialEq, Deserialize)]
+    struct U {
+        u: (),
+    }
+    assert_eq!(de::<U>("u #null"), U { u: () });
+}
+
+#[test]
+fn dash_block_of_structs() {
+    #[derive(Debug, PartialEq, Deserialize)]
+    struct P {
+        x: i32,
+    }
+    #[derive(Debug, PartialEq, Deserialize)]
+    struct Doc {
+        p: Vec<P>,
+    }
+    let d: Doc = de("p { - { x 1 }; - x=2 }");
+    assert_eq!(d.p, [P { x: 1 }, P { x: 2 }]);
+}
+
+#[test]
+fn top_level_enum() {
+    let s: Shape = de("rect w=1.0 h=2.0");
+    assert_eq!(s, Shape::Rect { w: 1.0, h: 2.0 });
+    assert_eq!(ser(&Shape::Circle(1.0)), "circle 1.0\n");
+    assert_eq!(de::<Shape>("point"), Shape::Point);
+}
+
+#[test]
+fn optional_struct_field() {
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    struct Doc {
+        server: Option<Site>,
+    }
+    round(&Doc { server: None }, "");
+    round(
+        &Doc {
+            server: Some(Site {
+                region: "r".into(),
+                replicas: 1,
+            }),
+        },
+        "server {\n  region \"r\"\n  replicas 1\n}\n",
+    );
+}
