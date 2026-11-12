@@ -1,5 +1,7 @@
 //! One test (or a few) per mapping rule, reading and writing.
 
+#![allow(clippy::unwrap_used, clippy::std_instead_of_core)]
+
 use std::collections::{BTreeMap, HashMap};
 
 use kdl_serde::{Annotated, MapStyle, Options, RawDocument, RawNode, SeqStyle};
