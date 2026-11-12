@@ -33,7 +33,7 @@ pub(crate) fn parse<'a>(src: &'a str, opts: &ParseOptions) -> Result<Document<'a
     if src.starts_with('\u{FEFF}') {
         p.pos = 3;
     }
-    let nodes = p.nodes(false).map_err(|e| *e)?;
+    let nodes = p.nodes(None).map_err(|e| *e)?;
     Ok(Document::new(nodes, Span::new(opts.base, src.len())))
 }
 
@@ -337,17 +337,21 @@ impl<'a> Parser<'a> {
     // ------------------------------------------------------------------
     // Nodes
 
-    fn nodes(&mut self, in_children: bool) -> PResult<Vec<Node<'a>>> {
+    /// The nodes of the document, or of the children block whose `{` is at
+    /// `open`.
+    fn nodes(&mut self, open: Option<usize>) -> PResult<Vec<Node<'a>>> {
+        let in_children = open.is_some();
         let mut nodes = Vec::new();
         loop {
             self.line_space()?;
             match self.peek() {
                 None => {
-                    if in_children {
-                        return self.err(
+                    if let Some(open) = open {
+                        return Err(self.error_at(
                             ErrorKind::Unterminated,
+                            open,
                             "unterminated children block, expected `}`",
-                        );
+                        ));
                     }
                     return Ok(nodes);
                 }
@@ -474,9 +478,9 @@ impl<'a> Parser<'a> {
         }
         self.pos += 1;
         self.depth += 1;
-        let nodes = self.nodes(true)?;
+        let nodes = self.nodes(Some(start))?;
         self.depth -= 1;
-        // nodes(true) only returns Ok when positioned at '}'
+        // nodes(Some(_)) only returns Ok when positioned at '}'
         self.pos += 1;
         Ok(Document::new(nodes, self.span(start, self.pos)))
     }
@@ -609,10 +613,11 @@ impl<'a> Parser<'a> {
                 _ => b == b'0' || b == b'1',
             };
             if !self.peek().is_some_and(is_digit) {
-                return self.err(
+                return Err(Box::new(Error::new(
                     ErrorKind::InvalidNumber,
+                    self.span(start, self.pos),
                     "expected a digit after the radix prefix",
-                );
+                )));
             }
             while self.peek().is_some_and(|b| is_digit(b) || b == b'_') {
                 self.pos += 1;
@@ -753,11 +758,13 @@ impl<'a> Parser<'a> {
             ));
         }
         if matches!(s, "true" | "false" | "null" | "inf" | "-inf" | "nan") {
-            return Err(self.error_at(
+            let e = Error::new(
                 ErrorKind::InvalidIdentifier,
-                start,
-                format!("bare `{s}` is not allowed; use `#{s}` or quote it"),
-            ));
+                self.span(start, self.pos),
+                format!("bare `{s}` is not a value"),
+            )
+            .with_help("write a keyword with `#` (`#true`, `#null`), or quote it as a string");
+            return Err(Box::new(e));
         }
         Ok(Some(Cow::Borrowed(s)))
     }
@@ -806,10 +813,15 @@ impl<'a> Parser<'a> {
                 }
                 _ => {
                     if self.at_newline() {
-                        return self.err(
+                        let e = Error::new(
                             ErrorKind::InvalidString,
-                            "newline in a single-line string; use \"\"\" for multi-line",
+                            self.span(start, self.pos),
+                            "unexpected newline in a single-line string",
+                        )
+                        .with_help(
+                            "close the string, or write a multi-line string as \"\"\"…\"\"\"",
                         );
+                        return Err(Box::new(e));
                     }
                     self.advance_char_checked()?;
                 }

@@ -16,6 +16,7 @@ use std::path::Path;
 use kdl::KdlDocument;
 pub use kdl_load::Loaded;
 use kdl_span::SourceMap;
+use kdl_tree::Document;
 use serde::Serialize;
 use serde::de::{Deserialize, DeserializeOwned};
 
@@ -44,7 +45,19 @@ pub fn from_str<T: DeserializeOwned>(s: &str) -> Result<T> {
 /// Deserializes a `T` from KDL text that came from a file named `name`;
 /// errors name the file.
 pub fn from_str_named<T: DeserializeOwned>(s: &str, name: &str) -> Result<T> {
-    from_loaded(&kdl_load::load_str(name, s).map_err(Error::load)?)
+    // Parse borrowing from `s`; build a source map only for an error.
+    let sources = || {
+        let mut sources = SourceMap::new();
+        sources.add(name, s);
+        sources
+    };
+    match Document::parse(s) {
+        Ok(doc) => T::deserialize(document(&doc)).map_err(|e| e.resolve(&sources())),
+        Err(_) => match kdl_load::load_str(name, s) {
+            Err(e) => Err(Error::load(e)),
+            Ok(loaded) => from_loaded(&loaded),
+        },
+    }
 }
 
 /// Deserializes a `T` from a reader holding KDL text.
@@ -101,29 +114,49 @@ pub fn from_dir<T: DeserializeOwned>(dir: impl AsRef<Path>, recursive: bool) -> 
 /// assert_eq!(s.host, "localhost");
 /// ```
 pub fn from_loaded<'de, T: Deserialize<'de>>(loaded: &'de Loaded) -> Result<T> {
-    deserialize(loaded.doc(), loaded.sources())
+    from_tree(loaded.tree(), loaded.sources())
 }
 
-/// Deserializes a `T` from a parsed document; `T` may borrow from it.
+/// Deserializes a `T` from a `kdl-tree` document whose spans resolve
+/// against `sources`; `T` may borrow from it.
+///
+/// ```
+/// let text = "host \"localhost\"";
+/// let doc = kdl_tree::Document::parse(text).unwrap();
+/// let mut sources = kdl_span::SourceMap::new();
+/// sources.add("config.kdl", text);
+/// let host: std::collections::BTreeMap<&str, &str> = kdl_serde::from_tree(&doc, &sources).unwrap();
+/// assert_eq!(host["host"], "localhost");
+/// ```
+pub fn from_tree<'de, T: Deserialize<'de>>(
+    doc: &'de Document<'de>,
+    sources: &SourceMap,
+) -> Result<T> {
+    T::deserialize(document(doc)).map_err(|e| e.resolve(sources))
+}
+
+/// Deserializes a `T` from a `kdl` document.
 ///
 /// Error spans point into the document's own text (its `Display` output),
 /// which matches the original input when the document came from
 /// [`KdlDocument::parse`] and has not been edited.
-pub fn from_doc<'de, T: Deserialize<'de>>(doc: &'de KdlDocument) -> Result<T> {
-    T::deserialize(document(doc)).map_err(|e| {
+#[cfg(feature = "kdl-compat")]
+#[deprecated(
+    note = "use `from_str`, `from_loaded` or `from_tree`; `kdl` input goes away with \
+                     the `kdl-compat` feature"
+)]
+pub fn from_doc<T: DeserializeOwned>(doc: &KdlDocument) -> Result<T> {
+    let tree = Document::from_kdl(doc);
+    T::deserialize(document(&tree)).map_err(|e| {
         let mut sources = SourceMap::new();
         sources.add("", doc.to_string());
         e.resolve(&sources)
     })
 }
 
-fn document(doc: &KdlDocument) -> BlockDe<'_> {
-    let nodes: Vec<NodeRef<'_>> = doc.nodes().iter().map(|node| NodeRef { node }).collect();
-    BlockDe::new(nodes, (0, 0).into())
-}
-
-fn deserialize<'de, T: Deserialize<'de>>(doc: &'de KdlDocument, sources: &SourceMap) -> Result<T> {
-    T::deserialize(document(doc)).map_err(|e| e.resolve(sources))
+fn document<'a>(doc: &'a Document<'a>) -> BlockDe<'a> {
+    let nodes: Vec<NodeRef<'a>> = doc.nodes().iter().map(|node| NodeRef { node }).collect();
+    BlockDe::new(nodes, kdl_tree::Span::default())
 }
 
 /// Deserializes every `<kind> <name> { body }` node of a loaded document:
@@ -147,7 +180,7 @@ pub fn named_blocks<'de, T: Deserialize<'de>>(
     kind: &str,
 ) -> Result<Vec<(&'de str, T)>> {
     let sources = loaded.sources();
-    let blocks = kdl_nodes::named_blocks(loaded.doc(), kind, sources)
+    let blocks = kdl_nodes::named_blocks(loaded.tree(), kind, sources)
         .map_err(|e| Error::nodes(e, sources))?;
     blocks
         .into_iter()

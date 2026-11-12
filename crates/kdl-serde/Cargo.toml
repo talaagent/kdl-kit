@@ -11,6 +11,7 @@ publish.workspace = true
 
 [dependencies]
 kdl.workspace = true
+kdl-tree = { workspace = true, features = ["kdl"] }
 kdl-span.workspace = true
 kdl-load.workspace = true
 kdl-nodes.workspace = true
@@ -20,8 +21,11 @@ thiserror.workspace = true
 miette.workspace = true
 
 [features]
-default = ["parallel"]
+default = ["parallel", "kdl-compat"]
 parallel = ["kdl-load/parallel"]
+# Deprecated, for one release: `from_doc(&KdlDocument)` and the `kdl` views
+# in kdl-load, kdl-nodes and kdl-span.
+kdl-compat = ["kdl-load/kdl-compat", "kdl-nodes/kdl-compat", "kdl-span/kdl-compat"]
 miette = ["kdl-span/miette", "kdl-load/miette", "kdl-nodes/miette"]
 
 [lints]

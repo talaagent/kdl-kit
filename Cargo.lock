@@ -277,6 +277,7 @@ version = "0.1.0"
 dependencies = [
  "kdl",
  "kdl-span",
+ "kdl-tree",
  "miette",
  "rayon",
  "tempfile",
@@ -290,6 +291,7 @@ dependencies = [
  "kdl",
  "kdl-load",
  "kdl-span",
+ "kdl-tree",
  "miette",
  "thiserror",
 ]
@@ -325,6 +327,7 @@ dependencies = [
  "kdl-nodes",
  "kdl-pretty",
  "kdl-span",
+ "kdl-tree",
  "miette",
  "proptest",
  "serde",
@@ -337,6 +340,7 @@ name = "kdl-span"
 version = "0.1.0"
 dependencies = [
  "kdl",
+ "kdl-tree",
  "miette",
 ]
 

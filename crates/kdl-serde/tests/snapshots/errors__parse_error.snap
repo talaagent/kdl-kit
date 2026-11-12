@@ -4,12 +4,11 @@ expression: render(&e)
 ---
 kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_load-parse)
 
-  × Unexpected newline in single-line quoted string
+  × unexpected newline in a single-line string
    ╭─[config.kdl:1:6]
  1 │ host "unterminated
    ·      ──────┬──────
-   ·            ╰── not quoted string
+   ·            ╰── this string
  2 │ port 1
    ╰────
-  help: You can make a string multi-line by wrapping it in '"""', with a newline immediately after
-        the opening quotes.
+  help: close the string, or write a multi-line string as """…"""

@@ -1,7 +1,9 @@
 # kdl-serde
 
-Generic [KDL v2] libraries on the [`kdl`] crate (v6), used by talaagent/korek
-for schemas and configuration. Depend on them via git:
+Generic [KDL v2] libraries, used by talaagent/korek for schemas and
+configuration. Reading goes through our own parser and span-carrying tree
+(`kdl-tree`, ~10× faster end to end than the [`kdl`] crate); writing and
+formatting use [`kdl`] (v6). Depend on them via git:
 
 ```toml
 kdl-serde = { git = "https://github.com/talaagent/kdl-serde" }
@@ -10,11 +12,16 @@ kdl-serde = { git = "https://github.com/talaagent/kdl-serde" }
 | Crate | What | Depends on |
 | --- | --- | --- |
 | [`kdl-tree`](crates/kdl-tree) | Fast KDL v2 parser (338/338 on the official suite) into a borrowed tree with byte spans on every part; depth-capped | thiserror (kdl, optional) |
-| [`kdl-span`](crates/kdl-span) | Source maps (files in one offset space), `Span { file, offset, len }`, lazy line/col, labels, did-you-mean | kdl |
-| [`kdl-load`](crates/kdl-load) | Load a string, file or directory of `*.kdl` (sorted, recursive or not, parallel) as one document with a source map | kdl, kdl-span (rayon) |
-| [`kdl-nodes`](crates/kdl-nodes) | Untyped helpers: `<kind> <name> { … }` blocks, single identifiers, duplicate names, child walking | kdl, kdl-span |
+| [`kdl-span`](crates/kdl-span) | Source maps (files in one offset space), `Span { file, offset, len }`, lazy line/col, labels, did-you-mean | kdl-tree |
+| [`kdl-load`](crates/kdl-load) | Load a string, file or directory of `*.kdl` (sorted, recursive or not, parallel) as one `kdl_tree::Document` with a source map | kdl-tree, kdl-span (rayon) |
+| [`kdl-nodes`](crates/kdl-nodes) | Untyped helpers: `<kind> <name> { … }` blocks, single identifiers, duplicate names, child walking | kdl-tree, kdl-span |
 | [`kdl-pretty`](crates/kdl-pretty) | Deterministic formatter for any `KdlDocument`, and the `kdl-pretty` CLI (treefmt-friendly, `--check`) | kdl |
 | [`kdl-serde`](crates/kdl-serde) | serde `Deserializer`/`Serializer` with KDL-shaped conventions; typed `from_dir`, `named_blocks`, `named_map` | serde + the above |
+
+The default `kdl-compat` feature of kdl-span, kdl-load, kdl-nodes and
+kdl-serde keeps the old `kdl::KdlDocument` entry points (`Loaded::doc`,
+`from_doc`, kdl-nodes on `KdlDocument`s) for one release; they are
+deprecated and convert to or from the tree.
 
 Only `kdl-serde` depends on serde (CI checks this). Every crate's errors are
 `thiserror` types with stable codes ([docs/errors.md](docs/errors.md)), help

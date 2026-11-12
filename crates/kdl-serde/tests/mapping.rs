@@ -696,9 +696,13 @@ fn compact_output() {
 fn from_reader_and_doc() {
     let s: Server = kdl_serde::from_reader("host h; port 1; debug #true".as_bytes()).unwrap();
     assert_eq!(s.port, 1);
-    let doc = kdl_serde::to_doc(&s).unwrap();
-    let back: Server = kdl_serde::from_doc(&doc).unwrap();
-    assert_eq!(back, s);
+    #[cfg(feature = "kdl-compat")]
+    {
+        let doc = kdl_serde::to_doc(&s).unwrap();
+        #[allow(deprecated)]
+        let back: Server = kdl_serde::from_doc(&doc).unwrap();
+        assert_eq!(back, s);
+    }
 }
 
 #[test]

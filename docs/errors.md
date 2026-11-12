@@ -18,7 +18,7 @@ kdl_serde::from_file::<Config>("missing.kdl")
 
 ## `kdl_load::parse`
 
-The input is not valid KDL v2. The label points at the first syntax problem kdl reported; `kdl_load::ParseError::problems` lists all of them. KDL v1 syntax (bare `true`, `null`, `r"raw"` strings) is a common cause.
+The input is not valid KDL v2. The label points at the syntax error; `kdl_load::ParseError::kind` (and `ParseProblem::kind`) says which one, with its own `kdl_tree::*` code below. KDL v1 syntax (bare `true`, `null`, `r"raw"` strings) is a common cause.
 
 ```kdl
 host "unterminated
@@ -38,7 +38,7 @@ node "a""b"
 
 ## `kdl_tree::unterminated`
 
-A string, block comment or children block runs to the end of the input. The label points at where it starts (for a children block, at the end of the input). It is reported as [`kdl_load::parse`](#kdl_load-parse) with this kind.
+A string, block comment or children block runs to the end of the input. The label points at where it starts. It is reported as [`kdl_load::parse`](#kdl_load-parse) with this kind.
 
 ```kdl
 host "localhost

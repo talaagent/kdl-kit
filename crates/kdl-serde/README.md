@@ -37,7 +37,8 @@ assert_eq!(kdl_serde::to_string_pretty(&config)?, "name \"api\"\nport 8080\ntags
 | `from_str`, `from_str_named` | Text (optionally with a file name for errors) to `T` |
 | `from_reader`, `from_file` | A reader or a file to `T` |
 | `from_dir(path, recursive)` | Every `*.kdl` file in a directory, sorted by path, read as one document (via `kdl-load`) |
-| `from_loaded`, `from_doc` | A `kdl_load::Loaded` or a `kdl::KdlDocument` to `T`; `T` may borrow (`&'de str`, `Cow<'de, str>`) |
+| `from_loaded`, `from_tree` | A `kdl_load::Loaded` or a `kdl_tree::Document` to `T`; `T` may borrow (`&'de str`, `Cow<'de, str>`) |
+| `from_doc` | Deprecated (`kdl-compat` feature): a `kdl::KdlDocument` to an owned `T` |
 | `named_blocks::<T>(loaded, kind)`, `named_map::<T>` | Every `<kind> <name> { body }` node as `(name, T)` / `BTreeMap<String, T>`; names must be unique |
 | `to_string_pretty`, `to_string_with` | `T` to indented text (default or custom `Options`) |
 | `to_string` | `T` to compact text, one top-level node per line |

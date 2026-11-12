@@ -12,7 +12,7 @@ use alloc::sync::Arc;
 use core::fmt;
 
 use kdl_span::{Label, Severity, SourceFile, SourceMap, Span};
-use miette::SourceSpan;
+use kdl_tree::Span as RawSpan;
 
 /// A result with this crate's [`Error`].
 pub type Result<T, E = Error> = core::result::Result<T, E>;
@@ -118,8 +118,8 @@ struct Inner {
     label: Option<String>,
     help: Option<String>,
     /// Unresolved document offsets, until [`Error::resolve`].
-    raw: Option<SourceSpan>,
-    raw_secondary: Vec<(SourceSpan, String)>,
+    raw: Option<RawSpan>,
+    raw_secondary: Vec<(RawSpan, String)>,
     labels: Vec<Label>,
     file: Option<Arc<SourceFile>>,
 }
@@ -221,7 +221,7 @@ impl Error {
         self
     }
 
-    pub(crate) fn with_secondary(mut self, span: SourceSpan, label: impl Into<String>) -> Self {
+    pub(crate) fn with_secondary(mut self, span: RawSpan, label: impl Into<String>) -> Self {
         self.inner.raw_secondary.push((span, label.into()));
         self
     }
@@ -243,7 +243,7 @@ impl Error {
 
     /// Points the error at a document span, unless a deeper deserializer
     /// already did.
-    pub(crate) fn at(mut self, span: SourceSpan) -> Self {
+    pub(crate) fn at(mut self, span: RawSpan) -> Self {
         if self.inner.raw.is_none() {
             self.inner.raw = Some(span);
         }
@@ -256,7 +256,7 @@ impl Error {
         let Some(raw) = inner.raw.take() else {
             return self;
         };
-        let Some(primary) = sources.span(raw.offset(), raw.len()) else {
+        let Some(primary) = sources.resolve(raw) else {
             return self;
         };
         let label = inner
@@ -265,7 +265,7 @@ impl Error {
             .unwrap_or_else(|| inner.kind.default_label().to_owned());
         inner.labels.push(Label::primary(primary, label));
         for (span, label) in core::mem::take(&mut inner.raw_secondary) {
-            let Some(span) = sources.span(span.offset(), span.len()) else {
+            let Some(span) = sources.resolve(span) else {
                 continue;
             };
             if span.file == primary.file {

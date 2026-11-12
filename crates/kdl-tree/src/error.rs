@@ -58,6 +58,7 @@ pub struct Error {
     kind: ErrorKind,
     span: Span,
     message: Cow<'static, str>,
+    help: Option<&'static str>,
 }
 
 impl Error {
@@ -66,7 +67,13 @@ impl Error {
             kind,
             span,
             message: message.into(),
+            help: None,
         }
+    }
+
+    pub(crate) fn with_help(mut self, help: &'static str) -> Self {
+        self.help = Some(help);
+        self
     }
 
     /// What kind of error this is.
@@ -88,5 +95,10 @@ impl Error {
     /// What is wrong, without position.
     pub fn message(&self) -> &str {
         &self.message
+    }
+
+    /// How to fix it, when the parser knows.
+    pub fn help(&self) -> Option<&'static str> {
+        self.help
     }
 }

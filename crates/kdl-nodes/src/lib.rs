@@ -6,11 +6,16 @@
 //!     struct User { field id "u64" }
 //!     struct Post { field title "string" }
 //! "#).unwrap();
-//! let structs = kdl_nodes::named_blocks(loaded.doc(), "struct", loaded.sources()).unwrap();
+//! let structs = kdl_nodes::named_blocks(loaded.tree(), "struct", loaded.sources()).unwrap();
 //! let names: Vec<&str> = structs.iter().map(|b| b.name).collect();
 //! assert_eq!(names, ["User", "Post"]);
 //! assert_eq!(kdl_nodes::children(structs[0].node).count(), 1);
 //! ```
+//!
+//! Every function takes a [`kdl_tree::Document`] (from `kdl-load`'s
+//! `Loaded::tree`) and its nodes; with the deprecated, default-on
+//! `kdl-compat` feature they also take `kdl::KdlDocument`s, through the
+//! [`Doc`] and [`NodeLike`] traits.
 //!
 //! Errors carry stable codes (`kdl_nodes::duplicate_name`,
 //! `kdl_nodes::expected_identifier`) and [`Label`]s resolved through the
@@ -19,23 +24,123 @@
 
 use std::sync::Arc;
 
-use kdl::{KdlDocument, KdlNode, KdlValue};
-pub use kdl_span::{Label, SourceFile, SourceMap, Span};
+pub use kdl_span::{Label, SourceFile, SourceMap, Span, Spanned, SpannedNode};
+use kdl_tree::{Document, Node, Value};
+
+/// A list of nodes: a document or a children block.
+pub trait Doc {
+    /// Its node type.
+    type Node: NodeLike<Doc = Self>;
+
+    /// The nodes, in order.
+    fn doc_nodes(&self) -> &[Self::Node];
+}
+
+/// A node, as kdl-nodes reads it.
+pub trait NodeLike: SpannedNode {
+    /// Its children block type.
+    type Doc: Doc<Node = Self>;
+    /// Its argument type.
+    type Arg: Spanned;
+
+    /// The node's name.
+    fn node_name(&self) -> &str;
+
+    /// Its children block.
+    fn node_children(&self) -> Option<&Self::Doc>;
+
+    /// Its positional arguments, in order.
+    fn node_args(&self) -> impl Iterator<Item = &Self::Arg>;
+
+    /// An argument's string value (`None` for other values).
+    fn arg_str(arg: &Self::Arg) -> Option<&str>;
+}
+
+impl<'s> Doc for Document<'s> {
+    type Node = Node<'s>;
+
+    fn doc_nodes(&self) -> &[Node<'s>] {
+        self.nodes()
+    }
+}
+
+impl<'s> NodeLike for Node<'s> {
+    type Doc = Document<'s>;
+    type Arg = kdl_tree::Entry<'s>;
+
+    fn node_name(&self) -> &str {
+        self.name().value()
+    }
+
+    fn node_children(&self) -> Option<&Document<'s>> {
+        self.children()
+    }
+
+    fn node_args(&self) -> impl Iterator<Item = &Self::Arg> {
+        self.args()
+    }
+
+    fn arg_str(arg: &Self::Arg) -> Option<&str> {
+        match arg.value() {
+            Value::String(s) => Some(s),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(feature = "kdl-compat")]
+impl Doc for kdl::KdlDocument {
+    type Node = kdl::KdlNode;
+
+    fn doc_nodes(&self) -> &[kdl::KdlNode] {
+        self.nodes()
+    }
+}
+
+#[cfg(feature = "kdl-compat")]
+impl NodeLike for kdl::KdlNode {
+    type Doc = kdl::KdlDocument;
+    type Arg = kdl::KdlEntry;
+
+    fn node_name(&self) -> &str {
+        self.name().value()
+    }
+
+    fn node_children(&self) -> Option<&kdl::KdlDocument> {
+        self.children()
+    }
+
+    fn node_args(&self) -> impl Iterator<Item = &Self::Arg> {
+        self.entries().iter().filter(|e| e.name().is_none())
+    }
+
+    fn arg_str(arg: &Self::Arg) -> Option<&str> {
+        arg.value().as_string()
+    }
+}
 
 /// A node with its name argument: `struct User { … }` has kind `struct` and
 /// name `User`.
-#[derive(Debug, Clone, Copy)]
-pub struct Named<'a> {
+#[derive(Debug)]
+pub struct Named<'a, N = Node<'a>> {
     /// The whole node.
-    pub node: &'a KdlNode,
+    pub node: &'a N,
     /// Its first argument.
     pub name: &'a str,
 }
 
-impl<'a> Named<'a> {
+impl<N> Clone for Named<'_, N> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<N> Copy for Named<'_, N> {}
+
+impl<'a, N: NodeLike> Named<'a, N> {
     /// The node's children block, if it has one.
-    pub fn body(&self) -> Option<&'a KdlDocument> {
-        self.node.children()
+    pub fn body(&self) -> Option<&'a N::Doc> {
+        self.node.node_children()
     }
 }
 
@@ -135,25 +240,27 @@ impl miette::Diagnostic for Error {
 }
 
 /// The child nodes of `node` (none if it has no children block).
-pub fn children(node: &KdlNode) -> impl Iterator<Item = &KdlNode> {
-    node.children().into_iter().flat_map(KdlDocument::nodes)
+pub fn children<N: NodeLike>(node: &N) -> impl Iterator<Item = &N> {
+    node.node_children().into_iter().flat_map(Doc::doc_nodes)
 }
 
 /// The nodes of `doc` named `kind`.
-pub fn nodes<'a>(doc: &'a KdlDocument, kind: &'a str) -> impl Iterator<Item = &'a KdlNode> {
-    doc.nodes().iter().filter(move |n| n.name().value() == kind)
+pub fn nodes<'a, D: Doc>(doc: &'a D, kind: &'a str) -> impl Iterator<Item = &'a D::Node> {
+    doc.doc_nodes()
+        .iter()
+        .filter(move |n| n.node_name() == kind)
 }
 
 /// The first child of `node` named `name`.
-pub fn child<'a>(node: &'a KdlNode, name: &str) -> Option<&'a KdlNode> {
-    children(node).find(|c| c.name().value() == name)
+pub fn child<'a, N: NodeLike>(node: &'a N, name: &str) -> Option<&'a N> {
+    children(node).find(|c| c.node_name() == name)
 }
 
 /// The node's name: its single positional string argument
 /// (`struct User { … }` → `User`). Properties and children are allowed.
-pub fn identifier<'a>(node: &'a KdlNode, sources: &SourceMap) -> Result<&'a str, Error> {
-    let mut args = node.entries().iter().filter(|e| e.name().is_none());
-    let kind = node.name().value();
+pub fn identifier<'a, N: NodeLike>(node: &'a N, sources: &SourceMap) -> Result<&'a str, Error> {
+    let mut args = node.node_args();
+    let kind = node.node_name();
     let fail = |message: String, at: Option<Span>, label: &str| {
         let labels = at
             .or_else(|| sources.node_name(node))
@@ -166,7 +273,7 @@ pub fn identifier<'a>(node: &'a KdlNode, sources: &SourceMap) -> Result<&'a str,
     let Some(first) = args.next() else {
         return Err(fail(format!("`{kind}` needs a name"), None, "missing name"));
     };
-    let KdlValue::String(name) = first.value() else {
+    let Some(name) = N::arg_str(first) else {
         return Err(fail(
             format!("the name of `{kind}` must be a string"),
             sources.entry(first),
@@ -185,15 +292,15 @@ pub fn identifier<'a>(node: &'a KdlNode, sources: &SourceMap) -> Result<&'a str,
 
 /// The `kind` nodes of `doc` with their names, in document order. Fails
 /// on a node without a single name argument, or on a name used twice.
-pub fn named_blocks<'a>(
-    doc: &'a KdlDocument,
+pub fn named_blocks<'a, D: Doc>(
+    doc: &'a D,
     kind: &str,
     sources: &SourceMap,
-) -> Result<Vec<Named<'a>>, Error> {
+) -> Result<Vec<Named<'a, D::Node>>, Error> {
     let blocks = doc
-        .nodes()
+        .doc_nodes()
         .iter()
-        .filter(|n| n.name().value() == kind)
+        .filter(|n| n.node_name() == kind)
         .map(|node| {
             Ok(Named {
                 node,
@@ -206,18 +313,16 @@ pub fn named_blocks<'a>(
 }
 
 /// Fails if two of `blocks` share a name, pointing at both.
-pub fn check_unique(blocks: &[Named<'_>], sources: &SourceMap) -> Result<(), Error> {
-    let mut seen: std::collections::HashMap<&str, &Named<'_>> =
+pub fn check_unique<N: NodeLike>(
+    blocks: &[Named<'_, N>],
+    sources: &SourceMap,
+) -> Result<(), Error> {
+    let mut seen: std::collections::HashMap<&str, &Named<'_, N>> =
         std::collections::HashMap::with_capacity(blocks.len());
     for block in blocks {
         if let Some(first) = seen.insert(block.name, block) {
-            let kind = block.node.name().value();
-            let arg = |n: &KdlNode| {
-                n.entries()
-                    .iter()
-                    .find(|e| e.name().is_none())
-                    .and_then(|e| sources.entry(e))
-            };
+            let kind = block.node.node_name();
+            let arg = |n: &N| n.node_args().next().and_then(|e| sources.entry(e));
             let mut labels = Vec::new();
             if let Some(s) = arg(block.node) {
                 labels.push(Label::primary(s, "defined again here"));
@@ -244,33 +349,32 @@ pub fn check_unique(blocks: &[Named<'_>], sources: &SourceMap) -> Result<(), Err
 }
 
 /// Every node in `doc`, depth first, with its ancestors (outermost first).
-pub fn walk<'a>(doc: &'a KdlDocument, mut f: impl FnMut(&[&'a KdlNode], &'a KdlNode)) {
-    fn go<'a>(
-        nodes: &'a [KdlNode],
-        path: &mut Vec<&'a KdlNode>,
-        f: &mut impl FnMut(&[&'a KdlNode], &'a KdlNode),
+pub fn walk<'a, D: Doc>(doc: &'a D, mut f: impl FnMut(&[&'a D::Node], &'a D::Node)) {
+    fn go<'a, N: NodeLike>(
+        nodes: &'a [N],
+        path: &mut Vec<&'a N>,
+        f: &mut impl FnMut(&[&'a N], &'a N),
     ) {
         for node in nodes {
             f(path, node);
-            if let Some(children) = node.children() {
+            if let Some(children) = node.node_children() {
                 path.push(node);
-                go(children.nodes(), path, f);
+                go(children.doc_nodes(), path, f);
                 path.pop();
             }
         }
     }
-    go(doc.nodes(), &mut Vec::new(), &mut f);
+    go(doc.doc_nodes(), &mut Vec::new(), &mut f);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn load(s: &str) -> (KdlDocument, SourceMap) {
+    fn load(s: &str) -> (Document<'_>, SourceMap) {
         let mut sources = SourceMap::new();
         sources.add("t.kdl", s);
-        let doc: KdlDocument = s.parse().unwrap();
-        (doc, sources)
+        (Document::parse(s).unwrap(), sources)
     }
 
     #[test]
@@ -314,5 +418,19 @@ mod tests {
             seen.push(format!("{}{}", path.len(), n.name().value()))
         });
         assert_eq!(seen, ["0a", "1b", "2c", "1d", "0e"]);
+    }
+
+    #[test]
+    #[cfg(feature = "kdl-compat")]
+    fn reads_kdl_documents() {
+        let s = "struct A { x }\nstruct B\nstruct A";
+        let mut sm = SourceMap::new();
+        sm.add("t.kdl", s);
+        let doc: kdl::KdlDocument = s.parse().unwrap();
+        let e = named_blocks(&doc, "struct", &sm).unwrap_err();
+        assert_eq!(e.code(), "kdl_nodes::duplicate_name");
+        let a = &doc.nodes()[0];
+        assert_eq!(identifier(a, &sm).unwrap(), "A");
+        assert_eq!(children(a).count(), 1);
     }
 }

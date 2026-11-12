@@ -38,7 +38,7 @@ fn base_shifts_every_offset() {
     assert_eq!(b.name().span(), Span::new(106, 1));
     assert_eq!(b.entries()[0].value_span(), Span::new(110, 1));
     let err = Document::parse_with("a {", &ParseOptions::default().base(100)).unwrap_err();
-    assert_eq!(err.span(), Span::new(103, 0));
+    assert_eq!(err.span(), Span::new(102, 1));
 }
 
 #[test]
@@ -65,12 +65,12 @@ fn errors_have_codes_and_offsets() {
             "a\nb true",
             ErrorKind::InvalidIdentifier,
             4,
-            "bare `true` is not allowed; use `#true` or quote it",
+            "bare `true` is not a value",
         ),
         (
             "a 0x",
             ErrorKind::InvalidNumber,
-            4,
+            2,
             "expected a digit after the radix prefix",
         ),
         (

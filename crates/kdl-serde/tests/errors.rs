@@ -174,6 +174,34 @@ fn parse_error() {
     insta::assert_snapshot!(render(&e));
 }
 
+/// One input per `kdl_tree::*` syntax error code (docs/errors.md).
+#[test]
+fn syntax_error_kinds() {
+    let deep = "a {\n".repeat(300) + &"}".repeat(300);
+    let cases = [
+        "node \"a\"\"b\"",
+        "host \"localhost",
+        "node \"a\u{7}b\"",
+        "port 0x",
+        "enabled true",
+        "enabled #yes",
+        "text \"\"\"\n  one\n two\n  \"\"\"",
+        "path \"C:\\Users\"",
+        "node { child } extra=1",
+        &deep,
+    ];
+    let mut out = String::new();
+    for src in cases {
+        let Err(kdl_load::Error::Parse(p)) = kdl_load::load_str("config.kdl", src) else {
+            panic!("{src:?} parsed");
+        };
+        let e = fail::<BTreeMap<String, String>>(src);
+        assert_eq!(e.kind(), ErrorKind::Parse);
+        out += &format!("{}\n{}\n", p.kind().code(), render(&e));
+    }
+    insta::assert_snapshot!(out);
+}
+
 #[test]
 fn display_includes_location() {
     let e = fail::<Server>("host \"h\"\nport \"x\"\n");

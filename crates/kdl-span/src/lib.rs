@@ -2,8 +2,10 @@
 //!
 //! A [`SourceMap`] registers source files and gives each a [`FileId`] and a
 //! range in one global offset space, so a document merged from several
-//! files (see `kdl-load`) can keep plain `kdl` spans: [`SourceMap::span`]
-//! turns a global offset into a [`Span`] (file, offset, length), and
+//! files (see `kdl-load`) can keep plain global spans: [`SourceMap::resolve`]
+//! (or [`SourceMap::span`]) turns a global `kdl-tree` span into a [`Span`]
+//! (file, offset, length), [`SourceMap::node_name`] and friends take any
+//! [`Spanned`] part of a document, and
 //! [`SourceFile::line_col`] computes line and column on demand.
 //!
 //! Nothing here depends on `miette` unless the `miette` feature is on; then
@@ -252,35 +254,38 @@ impl SourceMap {
         (offset <= file.base + file.text.len()).then_some(file)
     }
 
-    /// Converts a global offset and length (a `kdl` span in a document
+    /// Converts a global offset and length (a span in a document
     /// loaded through this map) to a file-local [`Span`].
     pub fn span(&self, offset: usize, len: usize) -> Option<Span> {
         let file = self.file_at(offset)?;
         Some(Span::new(file.id, offset - file.base, len))
     }
 
+    /// Converts a span from a document loaded through this map (a
+    /// `kdl-tree` span, in the global offset space) to a file-local
+    /// [`Span`].
+    pub fn resolve(&self, span: kdl_tree::Span) -> Option<Span> {
+        self.span(span.offset, span.len)
+    }
+
     /// The span of a node's name, the usual place to point at a node.
-    pub fn node_name(&self, node: &kdl::KdlNode) -> Option<Span> {
-        let s = node.name().span();
-        self.span(s.offset(), s.len())
+    pub fn node_name(&self, node: &(impl SpannedNode + ?Sized)) -> Option<Span> {
+        self.resolve(node.name_span())
     }
 
     /// The span of a whole node, children included.
-    pub fn node(&self, node: &kdl::KdlNode) -> Option<Span> {
-        let s = node.span();
-        self.span(s.offset(), s.len())
+    pub fn node(&self, node: &(impl Spanned + ?Sized)) -> Option<Span> {
+        self.resolve(node.global_span())
     }
 
     /// The span of an argument or property.
-    pub fn entry(&self, entry: &kdl::KdlEntry) -> Option<Span> {
-        let s = entry.span();
-        self.span(s.offset(), s.len())
+    pub fn entry(&self, entry: &(impl Spanned + ?Sized)) -> Option<Span> {
+        self.resolve(entry.global_span())
     }
 
     /// The span of an identifier (a node name, property key or annotation).
-    pub fn ident(&self, ident: &kdl::KdlIdentifier) -> Option<Span> {
-        let s = ident.span();
-        self.span(s.offset(), s.len())
+    pub fn ident(&self, ident: &(impl Spanned + ?Sized)) -> Option<Span> {
+        self.resolve(ident.global_span())
     }
 
     /// `file:line:col` for a span, for plain-text messages.
@@ -291,6 +296,74 @@ impl SourceMap {
             format!("line {line} column {col}")
         } else {
             format!("{}:{line}:{col}", file.name())
+        }
+    }
+}
+
+/// A part of a document with a global span: `kdl-tree`'s nodes, entries,
+/// identifiers and documents, and (with the default `kdl-compat` feature)
+/// `kdl`'s.
+pub trait Spanned {
+    /// The span in the source map's global offset space.
+    fn global_span(&self) -> kdl_tree::Span;
+}
+
+/// A node: [`Spanned`], with a name span.
+pub trait SpannedNode: Spanned {
+    /// The span of the node's name.
+    fn name_span(&self) -> kdl_tree::Span;
+}
+
+impl Spanned for kdl_tree::Node<'_> {
+    fn global_span(&self) -> kdl_tree::Span {
+        self.span()
+    }
+}
+
+impl SpannedNode for kdl_tree::Node<'_> {
+    fn name_span(&self) -> kdl_tree::Span {
+        self.name().span()
+    }
+}
+
+impl Spanned for kdl_tree::Entry<'_> {
+    fn global_span(&self) -> kdl_tree::Span {
+        self.span()
+    }
+}
+
+impl Spanned for kdl_tree::Ident<'_> {
+    fn global_span(&self) -> kdl_tree::Span {
+        self.span()
+    }
+}
+
+impl Spanned for kdl_tree::Document<'_> {
+    fn global_span(&self) -> kdl_tree::Span {
+        self.span()
+    }
+}
+
+#[cfg(feature = "kdl-compat")]
+mod kdl_compat {
+    use super::{Spanned, SpannedNode};
+
+    macro_rules! spanned {
+        ($($t:ty)*) => {$(
+            impl Spanned for $t {
+                fn global_span(&self) -> kdl_tree::Span {
+                    let s = self.span();
+                    kdl_tree::Span::new(s.offset(), s.len())
+                }
+            }
+        )*};
+    }
+
+    spanned!(kdl::KdlNode kdl::KdlEntry kdl::KdlIdentifier kdl::KdlDocument);
+
+    impl SpannedNode for kdl::KdlNode {
+        fn name_span(&self) -> kdl_tree::Span {
+            self.name().global_span()
         }
     }
 }

@@ -3,11 +3,16 @@
 //! column.
 //!
 //! The nodes of all files are concatenated in path order into a single
-//! [`KdlDocument`]. Each file gets its own range in the source map's global
-//! offset space and its spans are shifted into that range, so plain `kdl`
-//! spans (`node.span()`, `entry.span()`) stay meaningful:
+//! [`kdl_tree::Document`] (re-exported here as [`Document`]). Each file gets
+//! its own range in the source map's global offset space and is parsed
+//! straight into that range, so every span in the tree (`node.span()`,
+//! `entry.span()`, `name().span()`) is global: [`SourceMap::resolve`],
 //! [`SourceMap::node_name`] and friends turn them into file-local
 //! [`Span`]s.
+//!
+//! The default `kdl-compat` feature keeps the `kdl::KdlDocument` view
+//! ([`Loaded::doc`], [`Loaded::into_parts`]) for one release; it is
+//! deprecated and converts the tree on first use.
 //!
 //! With the default `parallel` feature, files are read and parsed on
 //! rayon's thread pool; the merge order is always the sorted path order.
@@ -18,7 +23,7 @@
 //! # std::fs::write(dir.path().join("a.kdl"), "member ada")?;
 //! # std::fs::write(dir.path().join("b.kdl"), "\nmember grace")?;
 //! let loaded = kdl_load::load_dir(dir.path(), false)?;
-//! let grace = &loaded.doc().nodes()[1];
+//! let grace = &loaded.tree().nodes()[1];
 //! let span = loaded.sources().node_name(grace).unwrap();
 //! let file = loaded.sources().file(span.file);
 //! assert!(file.name().ends_with("b.kdl"));
@@ -30,20 +35,31 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use kdl::{KdlDocument, KdlNode};
-pub use kdl_span::{FileId, Label, SourceFile, SourceMap, Span};
+pub use kdl_span::{FileId, Label, SourceFile, SourceMap, Span, Spanned, SpannedNode};
+pub use kdl_tree::{Document, Entry, Ident, Node, Value};
 
 /// A document and the files it came from.
 #[derive(Debug, Clone, Default)]
 pub struct Loaded {
-    doc: KdlDocument,
+    tree: Document<'static>,
     sources: SourceMap,
+    #[cfg(feature = "kdl-compat")]
+    kdl: std::sync::OnceLock<kdl::KdlDocument>,
 }
 
 impl Loaded {
+    fn new(tree: Document<'static>, sources: SourceMap) -> Self {
+        Self {
+            tree,
+            sources,
+            #[cfg(feature = "kdl-compat")]
+            kdl: std::sync::OnceLock::new(),
+        }
+    }
+
     /// The merged document.
-    pub fn doc(&self) -> &KdlDocument {
-        &self.doc
+    pub fn tree(&self) -> &Document<'static> {
+        &self.tree
     }
 
     /// The source map its spans resolve against.
@@ -52,8 +68,30 @@ impl Loaded {
     }
 
     /// The document and source map.
-    pub fn into_parts(self) -> (KdlDocument, SourceMap) {
-        (self.doc, self.sources)
+    pub fn into_tree(self) -> (Document<'static>, SourceMap) {
+        (self.tree, self.sources)
+    }
+
+    /// The merged document as a `kdl::KdlDocument`, converted from
+    /// [`tree`](Self::tree) on first use (spans kept, formatting and
+    /// comments not).
+    #[cfg(feature = "kdl-compat")]
+    #[deprecated(note = "use `tree()`; the `kdl` view goes away with the `kdl-compat` feature")]
+    pub fn doc(&self) -> &kdl::KdlDocument {
+        self.kdl.get_or_init(|| self.tree.to_kdl())
+    }
+
+    /// The document as a `kdl::KdlDocument`, and the source map.
+    #[cfg(feature = "kdl-compat")]
+    #[deprecated(
+        note = "use `into_tree()`; the `kdl` view goes away with the `kdl-compat` feature"
+    )]
+    pub fn into_parts(self) -> (kdl::KdlDocument, SourceMap) {
+        let doc = match self.kdl.into_inner() {
+            Some(doc) => doc,
+            None => self.tree.to_kdl(),
+        };
+        (doc, self.sources)
     }
 }
 
@@ -97,6 +135,9 @@ pub struct ParseError {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct ParseProblem {
+    /// What kind of syntax error; its `code()` is a stable
+    /// `kdl_tree::…` code.
+    pub kind: kdl_tree::ErrorKind,
     /// What is wrong.
     pub message: String,
     /// Where, with a short label.
@@ -106,27 +147,37 @@ pub struct ParseProblem {
 }
 
 impl ParseError {
-    fn new(file: Arc<SourceFile>, err: &kdl::KdlError) -> Self {
-        let mut problems: Vec<ParseProblem> = err
-            .diagnostics
-            .iter()
-            .map(|d| ParseProblem {
-                message: d.message.clone().unwrap_or_else(|| "invalid KDL".into()),
-                label: Label::primary(
-                    Span::new(file.id(), d.span.offset(), d.span.len()),
-                    d.label.clone().unwrap_or_else(|| "here".into()),
-                ),
-                help: d.help.clone(),
-            })
-            .collect();
-        if problems.is_empty() {
-            problems.push(ParseProblem {
-                message: "invalid KDL".into(),
-                label: Label::primary(Span::new(file.id(), 0, 0), "here"),
-                help: None,
-            });
+    fn new(file: Arc<SourceFile>, err: &kdl_tree::Error) -> Self {
+        use kdl_tree::ErrorKind as K;
+        let at = err.span();
+        let span = Span::new(file.id(), at.offset - file.base(), at.len);
+        let (label, help) = match err.kind() {
+            K::Unterminated => ("starts here", err.help()),
+            K::TooDeep => ("nested too deeply", err.help()),
+            K::InvalidString => ("this string", err.help()),
+            K::InvalidIdentifier => ("not a value", err.help()),
+            K::InvalidKeyword => (
+                "unknown keyword",
+                Some("the keywords are #true, #false, #null, #inf, #-inf and #nan"),
+            ),
+            K::ChildrenOrder => ("after the children block", err.help()),
+            _ => ("here", err.help()),
+        };
+        let problem = ParseProblem {
+            kind: err.kind(),
+            message: err.message().to_owned(),
+            label: Label::primary(span, label),
+            help: help.map(str::to_owned),
+        };
+        Self {
+            file,
+            problems: vec![problem],
         }
-        Self { file, problems }
+    }
+
+    /// What kind of syntax error the first problem is.
+    pub fn kind(&self) -> kdl_tree::ErrorKind {
+        self.first().kind
     }
 
     /// The file that failed to parse.
@@ -228,8 +279,8 @@ mod diagnostic {
 pub fn load_str(name: &str, text: impl Into<Arc<str>>) -> Result<Loaded, Error> {
     let mut sources = SourceMap::new();
     let id = sources.add(name, text);
-    let doc = parse(sources.file(id))?;
-    Ok(Loaded { doc, sources })
+    let tree = parse(sources.file(id))?;
+    Ok(Loaded::new(tree, sources))
 }
 
 /// Loads one file.
@@ -301,22 +352,16 @@ pub fn load_files(paths: impl IntoIterator<Item = PathBuf>) -> Result<Loaded, Er
     for (path, text) in paths.iter().zip(texts) {
         sources.add(path.display().to_string(), text?);
     }
-    let docs = map_maybe_parallel(sources.files(), |file| {
-        let mut doc = parse(file)?;
-        if file.base() > 0 {
-            shift_doc(&mut doc, file.base());
-        }
-        Ok::<_, Error>(doc)
-    });
-    let mut merged = KdlDocument::new();
+    let docs = map_maybe_parallel(sources.files(), parse);
+    let end = sources
+        .files()
+        .last()
+        .map_or(0, |f| f.base() + f.text().len());
+    let mut merged = Document::new(Vec::new(), kdl_tree::Span::new(0, end));
     for doc in docs {
-        let mut doc = doc?;
-        merged.nodes_mut().append(doc.nodes_mut());
+        merged.nodes_mut().append(doc?.nodes_mut());
     }
-    Ok(Loaded {
-        doc: merged,
-        sources,
-    })
+    Ok(Loaded::new(merged, sources))
 }
 
 #[cfg(feature = "parallel")]
@@ -333,44 +378,12 @@ fn map_maybe_parallel<T, R>(items: &[T], f: impl Fn(&T) -> R) -> Vec<R> {
     items.iter().map(f).collect()
 }
 
-fn parse(file: &Arc<SourceFile>) -> Result<KdlDocument, Error> {
-    KdlDocument::parse_v2(file.text()).map_err(|e| ParseError::new(Arc::clone(file), &e).into())
-}
-
-/// Moves every span in `doc` by `by` bytes.
-fn shift_doc(doc: &mut KdlDocument, by: usize) {
-    let s = doc.span();
-    doc.set_span((s.offset() + by, s.len()));
-    for node in doc.nodes_mut() {
-        shift_node(node, by);
+fn parse(file: &Arc<SourceFile>) -> Result<Document<'static>, Error> {
+    let opts = kdl_tree::ParseOptions::default().base(file.base());
+    match Document::parse_with(file.text(), &opts) {
+        Ok(doc) => Ok(doc.into_owned()),
+        Err(e) => Err(ParseError::new(Arc::clone(file), &e).into()),
     }
-}
-
-fn shift_node(node: &mut KdlNode, by: usize) {
-    let s = node.span();
-    node.set_span((s.offset() + by, s.len()));
-    shift_ident(node.name_mut(), by);
-    if let Some(ty) = node.ty_mut() {
-        shift_ident(ty, by);
-    }
-    for entry in node.entries_mut() {
-        let s = entry.span();
-        entry.set_span((s.offset() + by, s.len()));
-        if let Some(name) = entry.name_mut() {
-            shift_ident(name, by);
-        }
-        if let Some(ty) = entry.ty_mut() {
-            shift_ident(ty, by);
-        }
-    }
-    if let Some(children) = node.children_mut() {
-        shift_doc(children, by);
-    }
-}
-
-fn shift_ident(ident: &mut kdl::KdlIdentifier, by: usize) {
-    let s = ident.span();
-    ident.set_span((s.offset() + by, s.len()));
 }
 
 #[cfg(test)]
@@ -386,11 +399,11 @@ mod tests {
         std::fs::write(dir.path().join("c.txt"), "not kdl {").unwrap();
 
         let flat = load_dir(dir.path(), false).unwrap();
-        assert_eq!(flat.doc().nodes().len(), 2);
+        assert_eq!(flat.tree().nodes().len(), 2);
 
         let all = load_dir(dir.path(), true).unwrap();
         let sm = all.sources();
-        let w = &all.doc().nodes()[2];
+        let w = &all.tree().nodes()[2];
         let at = |s: Span| {
             let f = sm.file(s.file);
             let (l, c) = f.line_col(s.offset);
@@ -403,7 +416,7 @@ mod tests {
         );
         let v = &w.children().unwrap().nodes()[0];
         assert_eq!(at(sm.node_name(v).unwrap()), ("b.kdl".into(), 3, 14));
-        let y = &all.doc().nodes()[1];
+        let y = &all.tree().nodes()[1];
         assert_eq!(
             at(sm.ident(y.entries()[0].ty().unwrap()).unwrap()),
             ("a.kdl".into(), 2, 4)
@@ -420,6 +433,27 @@ mod tests {
         };
         assert!(e.file().name().ends_with("b.kdl"));
         assert_eq!(e.code(), "kdl_load::parse");
+        assert_eq!(e.kind(), kdl_tree::ErrorKind::Unterminated);
+        assert_eq!(e.problems()[0].label.span.offset, 4);
+    }
+
+    #[test]
+    #[cfg(feature = "kdl-compat")]
+    #[allow(deprecated)]
+    fn kdl_view_keeps_global_spans() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.kdl"), "x 1").unwrap();
+        std::fs::write(dir.path().join("b.kdl"), "\n  y k=2").unwrap();
+        let loaded = load_dir(dir.path(), false).unwrap();
+        let y = &loaded.doc().nodes()[1];
+        assert_eq!(y.name().value(), "y");
+        let span = loaded.sources().node_name(y).unwrap();
+        assert_eq!(
+            loaded.sources().file(span.file).line_col(span.offset),
+            (2, 3)
+        );
+        let k = loaded.sources().entry(&y.entries()[0]).unwrap();
+        assert_eq!((k.offset, k.len), (5, 3));
     }
 
     #[test]

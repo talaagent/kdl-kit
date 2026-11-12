@@ -1,7 +1,9 @@
 # kdl-serde workspace
 
-Generic KDL v2 libraries on the `kdl` crate (v6): kdl-span, kdl-load,
-kdl-nodes, kdl-pretty (+ kdl-pretty-cli) and kdl-serde. Consumed by
+Generic KDL v2 libraries: kdl-tree, kdl-span, kdl-load, kdl-nodes,
+kdl-pretty (+ kdl-pretty-cli) and kdl-serde. The read path uses our own
+parser (kdl-tree); the `kdl` crate (v6) is only for writing/formatting,
+the deprecated `kdl-compat` views, and as a test oracle. Consumed by
 talaagent/korek via git, so public APIs stay small, documented and stable.
 
 ## Commands
@@ -21,15 +23,24 @@ small and focused; never force-push. Not published to crates.io.
 
 ## Layout
 
+- `crates/kdl-tree`: the parser (`src/parse.rs`, derived from club-kdl,
+  see NOTICE) and the borrowed document tree with spans on everything;
+  `ParseOptions { base, max_depth }`; coded errors. `tests/spec.rs` runs the
+  official suite when `KDL_SPEC_DIR` points at a kdl-org/kdl checkout (CI
+  pins one); `tests/differential.rs` compares against `kdl`.
 - `crates/kdl-span`: `SourceMap` (files in one global offset space),
-  `Span`, `Label`, lazy line/col, `did_you_mean`. kdl only.
-- `crates/kdl-load`: string/file/dir → one `KdlDocument` with spans shifted
-  into the source map; parallel behind the default `parallel` feature.
-- `crates/kdl-nodes`: untyped named-block helpers. No serde.
+  `Span`, `Label`, lazy line/col, `did_you_mean`, `Spanned`.
+- `crates/kdl-load`: string/file/dir → one `kdl_tree::Document<'static>`
+  parsed straight into global offsets (`ParseOptions::base`); parallel
+  behind the default `parallel` feature.
+- `crates/kdl-nodes`: untyped named-block helpers, generic over `Doc` /
+  `NodeLike` (kdl-tree, and `kdl` under `kdl-compat`). No serde.
 - `crates/kdl-pretty`: the deterministic formatter (don't use kdl-rs
   autoformat/`Display` for output; it collapses multiline strings,
   kdl-org/kdl-rs#77). kdl only.
-- `crates/kdl-serde/src/de.rs`: `BlockDe` (document / children block),
+- `kdl-compat` (default on in span/load/nodes/serde): deprecated `kdl`
+  views for one release; keep it compiling, don't build on it.
+- `crates/kdl-serde/src/de.rs` (reads `kdl_tree` nodes): `BlockDe` (document / children block),
   `GroupDe` (same-named siblings = one field), `NodeDe` (one node),
   `ValueDe` (one argument or property), `ElemDe` (a sequence element whose
   type decides whether the node is one element or one per argument).

@@ -16,8 +16,7 @@
 
 use alloc::borrow::Cow;
 
-use kdl::{KdlEntry, KdlNode, KdlValue};
-use miette::SourceSpan;
+use kdl_tree::{Document, Entry, Node, Span as RawSpan, Value};
 use serde::de::{
     self, DeserializeSeed, Deserializer, EnumAccess, Error as _, IntoDeserializer, MapAccess,
     SeqAccess, Unexpected, VariantAccess, Visitor,
@@ -29,7 +28,7 @@ use crate::magic;
 /// A node and the source it came from.
 #[derive(Clone, Copy)]
 pub(crate) struct NodeRef<'a> {
-    pub(crate) node: &'a KdlNode,
+    pub(crate) node: &'a Node<'a>,
 }
 
 impl<'a> NodeRef<'a> {
@@ -37,7 +36,7 @@ impl<'a> NodeRef<'a> {
         self.node.name().value()
     }
 
-    fn name_span(self) -> SourceSpan {
+    fn name_span(self) -> RawSpan {
         self.node.name().span()
     }
 
@@ -64,13 +63,13 @@ fn is_dash_block(n: NodeRef<'_>) -> bool {
 /// A single KDL value (an argument or a property value).
 #[derive(Clone, Copy)]
 pub(crate) struct ValueDe<'a> {
-    entry: &'a KdlEntry,
+    entry: &'a Entry<'a>,
     /// The `(type)` annotation was taken by an enum or `Annotated`.
     ty_used: bool,
 }
 
 impl<'a> ValueDe<'a> {
-    fn new(entry: &'a KdlEntry) -> Self {
+    fn new(entry: &'a Entry<'a>) -> Self {
         Self {
             entry,
             ty_used: false,
@@ -90,24 +89,24 @@ impl<'a> ValueDe<'a> {
 
     fn unexpected(&self) -> Unexpected<'a> {
         match self.entry.value() {
-            KdlValue::String(s) => Unexpected::Str(s),
-            KdlValue::Integer(i) => match i64::try_from(*i) {
+            Value::String(s) => Unexpected::Str(s),
+            Value::Integer(i) => match i64::try_from(*i) {
                 Ok(i) => Unexpected::Signed(i),
                 Err(_) => Unexpected::Other("a large integer"),
             },
-            KdlValue::Float(f) => Unexpected::Float(*f),
-            KdlValue::Bool(b) => Unexpected::Bool(*b),
-            KdlValue::Null => Unexpected::Unit,
+            Value::Float(f) => Unexpected::Float(*f),
+            Value::Bool(b) => Unexpected::Bool(*b),
+            Value::Null => Unexpected::Unit,
         }
     }
 
     fn visit<V: Visitor<'a>>(self, visitor: V) -> Result<V::Value> {
         let r = match self.entry.value() {
-            KdlValue::String(s) => visitor.visit_borrowed_str(s),
-            KdlValue::Integer(i) => visit_int(*i, visitor),
-            KdlValue::Float(f) => visitor.visit_f64(*f),
-            KdlValue::Bool(b) => visitor.visit_bool(*b),
-            KdlValue::Null => visitor.visit_unit(),
+            Value::String(s) => visitor.visit_borrowed_str(s),
+            Value::Integer(i) => visit_int(*i, visitor),
+            Value::Float(f) => visitor.visit_f64(*f),
+            Value::Bool(b) => visitor.visit_bool(*b),
+            Value::Null => visitor.visit_unit(),
         };
         self.wrap(r)
     }
@@ -143,7 +142,7 @@ impl<'a> Deserializer<'a> for ValueDe<'a> {
 
     fn deserialize_unit<V: Visitor<'a>>(self, visitor: V) -> Result<V::Value> {
         match self.entry.value() {
-            KdlValue::Null => self.wrap(visitor.visit_unit()),
+            Value::Null => self.wrap(visitor.visit_unit()),
             _ => self.wrap(Err(Error::invalid_type(self.unexpected(), &visitor))),
         }
     }
@@ -158,14 +157,14 @@ impl<'a> Deserializer<'a> for ValueDe<'a> {
 
     fn deserialize_option<V: Visitor<'a>>(self, visitor: V) -> Result<V::Value> {
         match self.entry.value() {
-            KdlValue::Null => self.wrap(visitor.visit_none()),
+            Value::Null => self.wrap(visitor.visit_none()),
             _ => self.wrap(visitor.visit_some(self)),
         }
     }
 
     fn deserialize_bytes<V: Visitor<'a>>(self, visitor: V) -> Result<V::Value> {
         match self.entry.value() {
-            KdlValue::String(s) => match crate::base64::decode(s) {
+            Value::String(s) => match crate::base64::decode(s) {
                 Some(bytes) => self.wrap(visitor.visit_byte_buf(bytes)),
                 None => self.wrap(Err(Error::invalid_value(
                     Unexpected::Str(s),
@@ -244,7 +243,7 @@ impl<'a> Deserializer<'a> for ValueDe<'a> {
             return self.wrap(visitor.visit_enum(Enum { tag, content }));
         }
         match self.entry.value() {
-            KdlValue::String(s) => {
+            Value::String(s) => {
                 let tag = Tag::new(s, self.entry.span());
                 let content = Nothing {
                     span: self.entry.span(),
@@ -274,7 +273,7 @@ pub(crate) struct NodeDe<'a> {
 
 impl<'a> NodeDe<'a> {
     /// A named block's body: the node minus its first argument (the name).
-    pub(crate) fn named_body(node: &'a KdlNode) -> Self {
+    pub(crate) fn named_body(node: &'a Node<'a>) -> Self {
         Self {
             skip_args: 1,
             ..Self::new(NodeRef { node })
@@ -290,7 +289,7 @@ impl<'a> NodeDe<'a> {
         }
     }
 
-    fn args(&self) -> impl Iterator<Item = &'a KdlEntry> {
+    fn args(&self) -> impl Iterator<Item = &'a Entry<'a>> {
         self.n
             .node
             .entries()
@@ -299,11 +298,11 @@ impl<'a> NodeDe<'a> {
             .skip(self.skip_args)
     }
 
-    fn props(&self) -> impl Iterator<Item = &'a KdlEntry> {
+    fn props(&self) -> impl Iterator<Item = &'a Entry<'a>> {
         self.n.node.entries().iter().filter(|e| e.name().is_some())
     }
 
-    fn ty(&self) -> Option<&'a kdl::KdlIdentifier> {
+    fn ty(&self) -> Option<&'a kdl_tree::Ident<'a>> {
         if self.ty_used { None } else { self.n.node.ty() }
     }
 
@@ -378,8 +377,8 @@ impl<'a> NodeDe<'a> {
     }
 
     /// The node minus what was already taken, as standalone KDL text.
-    fn raw_node(&self) -> KdlNode {
-        let mut node = self.n.node.clone();
+    fn raw_node(&self) -> kdl::KdlNode {
+        let mut node = self.n.node.to_kdl();
         let mut skip = self.skip_args;
         node.entries_mut().retain(|e| {
             if e.name().is_none() && skip > 0 {
@@ -454,7 +453,7 @@ impl<'a> Deserializer<'a> for NodeDe<'a> {
     fn deserialize_option<V: Visitor<'a>>(self, visitor: V) -> Result<V::Value> {
         if self.args_only() && self.arg_count() == 1 {
             if let Some(arg) = self.args().next() {
-                if arg.value().is_null() {
+                if *arg.value() == Value::Null {
                     return self.wrap(visitor.visit_none());
                 }
             }
@@ -476,7 +475,12 @@ impl<'a> Deserializer<'a> for NodeDe<'a> {
                         "expected only a children block, found arguments or properties",
                     ));
                 }
-                let doc = self.n.node.children().cloned().unwrap_or_default();
+                let doc = self
+                    .n
+                    .node
+                    .children()
+                    .map(Document::to_kdl)
+                    .unwrap_or_default();
                 self.wrap(visitor.visit_string(doc.to_string()))
             }
             _ => self.wrap(visitor.visit_newtype_struct(self)),
@@ -761,11 +765,11 @@ impl<'a> Deserializer<'a> for GroupDe<'a> {
 pub(crate) struct BlockDe<'a> {
     nodes: Vec<NodeRef<'a>>,
     /// Where to point errors about the block as a whole.
-    span: SourceSpan,
+    span: RawSpan,
 }
 
 impl<'a> BlockDe<'a> {
-    pub(crate) fn new(nodes: Vec<NodeRef<'a>>, span: SourceSpan) -> Self {
+    pub(crate) fn new(nodes: Vec<NodeRef<'a>>, span: RawSpan) -> Self {
         Self { nodes, span }
     }
 
@@ -840,7 +844,7 @@ impl<'a> Deserializer<'a> for BlockDe<'a> {
             magic::RAW_DOCUMENT => {
                 let mut doc = kdl::KdlDocument::new();
                 doc.nodes_mut()
-                    .extend(self.nodes.iter().map(|n| n.node.clone()));
+                    .extend(self.nodes.iter().map(|n| n.node.to_kdl()));
                 visitor.visit_string(doc.to_string())
             }
             magic::RAW_NODE => match self.nodes.as_slice() {
@@ -930,7 +934,7 @@ impl<'a> Deserializer<'a> for BlockDe<'a> {
 /// A key: a field name, property name, node name or `$N`.
 struct Key<'a> {
     name: Cow<'a, str>,
-    span: SourceSpan,
+    span: RawSpan,
     /// The key is a property, so errors say "property", not "field".
     prop: bool,
 }
@@ -949,7 +953,7 @@ struct Fields<'a> {
     entries: alloc::vec::IntoIter<(Key<'a>, Val<'a>)>,
     value: Option<Val<'a>>,
     /// Where the current value is, for errors its `Deserialize` impl raises.
-    value_span: SourceSpan,
+    value_span: RawSpan,
 }
 
 impl<'a> Fields<'a> {
@@ -1001,7 +1005,7 @@ impl<'a> Fields<'a> {
 
         // Properties: `@key` fields, or plain fields. The last one wins, as
         // the KDL spec says.
-        let props: Vec<&KdlEntry> = de.props().collect();
+        let props: Vec<&Entry<'a>> = de.props().collect();
         let mut prop_names: Vec<&'a str> = Vec::new();
         for (i, prop) in props.iter().enumerate() {
             let key = prop.name().map_or("", |k| k.value());
@@ -1033,7 +1037,7 @@ impl<'a> Fields<'a> {
         Ok(Self {
             entries: out.into_iter(),
             value: None,
-            value_span: (0, 0).into(),
+            value_span: RawSpan::default(),
         })
     }
 
@@ -1044,7 +1048,7 @@ impl<'a> Fields<'a> {
         Ok(Self {
             entries: out.into_iter(),
             value: None,
-            value_span: (0, 0).into(),
+            value_span: RawSpan::default(),
         })
     }
 
@@ -1098,7 +1102,7 @@ impl<'a> Fields<'a> {
         out: &mut Vec<(Key<'a>, Val<'a>)>,
         children: Vec<NodeRef<'a>>,
         fields: &'static [&'static str],
-        span: SourceSpan,
+        span: RawSpan,
     ) {
         if !fields.contains(&"$children") {
             return;
@@ -1423,15 +1427,15 @@ impl<'a> Deserializer<'a> for ElemDe<'a, '_> {
 /// A string with a location: keys, node names, type annotations.
 pub(crate) struct StrDe<'a> {
     s: Cow<'a, str>,
-    span: SourceSpan,
+    span: RawSpan,
 }
 
 impl<'a> StrDe<'a> {
-    fn new(s: &'a str, span: SourceSpan) -> Self {
+    fn new(s: &'a str, span: RawSpan) -> Self {
         Self::new_cow(Cow::Borrowed(s), span)
     }
 
-    fn new_cow(s: Cow<'a, str>, span: SourceSpan) -> Self {
+    fn new_cow(s: Cow<'a, str>, span: RawSpan) -> Self {
         Self { s, span }
     }
 
@@ -1517,7 +1521,7 @@ impl<'a> Deserializer<'a> for StrDe<'a> {
 
 /// The content of a unit variant given as a bare string (`mode "fast"`).
 struct Nothing {
-    span: SourceSpan,
+    span: RawSpan,
 }
 
 impl<'a> Deserializer<'a> for Nothing {
@@ -1544,11 +1548,11 @@ impl<'a> Deserializer<'a> for Nothing {
 /// A variant name and where it was written.
 struct Tag<'a> {
     name: Cow<'a, str>,
-    span: SourceSpan,
+    span: RawSpan,
 }
 
 impl<'a> Tag<'a> {
-    fn new(name: &'a str, span: SourceSpan) -> Self {
+    fn new(name: &'a str, span: RawSpan) -> Self {
         Self {
             name: Cow::Borrowed(name),
             span,
@@ -1679,13 +1683,13 @@ impl<'a> VariantAccess<'a> for Nothing {
 
 /// `$type` (the annotation) then `$value` (the value without it).
 struct AnnotatedAccess<'a, D> {
-    ty: Option<(&'a str, Option<SourceSpan>)>,
+    ty: Option<(&'a str, Option<RawSpan>)>,
     value: Option<D>,
     step: u8,
 }
 
 impl<'a, D> AnnotatedAccess<'a, D> {
-    fn new(ty: Option<(&'a str, Option<SourceSpan>)>, value: D) -> Self {
+    fn new(ty: Option<(&'a str, Option<RawSpan>)>, value: D) -> Self {
         Self {
             ty,
             value: Some(value),
@@ -1710,10 +1714,9 @@ impl<'a, D: Deserializer<'a, Error = Error>> MapAccess<'a> for AnnotatedAccess<'
         self.step += 1;
         if self.step == 1 {
             return match self.ty {
-                Some((ty, span)) => seed.deserialize(OptStr(Some(StrDe::new(
-                    ty,
-                    span.unwrap_or_else(|| (0, 0).into()),
-                )))),
+                Some((ty, span)) => {
+                    seed.deserialize(OptStr(Some(StrDe::new(ty, span.unwrap_or_default()))))
+                }
                 None => seed.deserialize(OptStr(None)),
             };
         }
