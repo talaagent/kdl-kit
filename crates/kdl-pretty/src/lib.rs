@@ -19,6 +19,10 @@ use kdl::{KdlDocument, KdlEntry, KdlError, KdlIdentifier, KdlNode, KdlValue};
 
 extern crate alloc;
 
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+struct ReadmeDoctests;
+
 /// Formatter settings.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
