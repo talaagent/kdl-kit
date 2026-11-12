@@ -36,6 +36,9 @@ nix develop -c cargo clippy --workspace --all-targets --all-features -- -D warni
 nix develop -c cargo bench -p kdl-serde
 ```
 
+Before/after numbers for the move to `kdl-tree` are in
+[BENCHMARKS.md](BENCHMARKS.md).
+
 [KDL v2]: https://kdl.dev
 [`kdl`]: https://docs.rs/kdl
 
