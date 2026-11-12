@@ -1,0 +1,12 @@
+---
+source: crates/kdl-serde/tests/errors.rs
+expression: render(&e)
+---
+kdl_serde::custom (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_serde-custom)
+
+  × `yesterday` is not a date
+   ╭─[config.kdl:1:1]
+ 1 │ when "yesterday"
+   · ──┬─
+   ·   ╰── here
+   ╰────

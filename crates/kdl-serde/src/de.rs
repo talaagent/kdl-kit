@@ -948,6 +948,8 @@ enum Val<'a> {
 struct Fields<'a> {
     entries: alloc::vec::IntoIter<(Key<'a>, Val<'a>)>,
     value: Option<Val<'a>>,
+    /// Where the current value is, for errors its `Deserialize` impl raises.
+    value_span: SourceSpan,
 }
 
 impl<'a> Fields<'a> {
@@ -1031,6 +1033,7 @@ impl<'a> Fields<'a> {
         Ok(Self {
             entries: out.into_iter(),
             value: None,
+            value_span: (0, 0).into(),
         })
     }
 
@@ -1041,6 +1044,7 @@ impl<'a> Fields<'a> {
         Ok(Self {
             entries: out.into_iter(),
             value: None,
+            value_span: (0, 0).into(),
         })
     }
 
@@ -1120,6 +1124,7 @@ impl<'a> MapAccess<'a> for Fields<'a> {
             return Ok(None);
         };
         self.value = Some(value);
+        self.value_span = key.span;
         let prop = key.prop;
         let de = StrDe::new_cow(key.name, key.span);
         seed.deserialize(de)
@@ -1128,14 +1133,15 @@ impl<'a> MapAccess<'a> for Fields<'a> {
     }
 
     fn next_value_seed<V: DeserializeSeed<'a>>(&mut self, seed: V) -> Result<V::Value> {
-        match self.value.take() {
+        let r = match self.value.take() {
             Some(Val::Value(v)) => seed.deserialize(v),
             Some(Val::Group(g)) => seed.deserialize(g),
             Some(Val::Args(args)) => seed.deserialize(ArgsDe(args)),
             Some(Val::Str(s)) => seed.deserialize(s),
             Some(Val::Block(b)) => seed.deserialize(b),
             None => Err(Error::custom("internal: value requested before key")),
-        }
+        };
+        r.map_err(|e| e.at(self.value_span))
     }
 
     fn size_hint(&self) -> Option<usize> {
@@ -1175,7 +1181,7 @@ impl<'a> MapAccess<'a> for KeyedMap<'a> {
 
     fn next_value_seed<V: DeserializeSeed<'a>>(&mut self, seed: V) -> Result<V::Value> {
         match self.value.take() {
-            Some(v) => seed.deserialize(v),
+            Some(v) => v.wrap(seed.deserialize(v)),
             None => Err(Error::custom("internal: value requested before key")),
         }
     }
@@ -1193,7 +1199,10 @@ impl<'a> SeqAccess<'a> for ArgSeq<'a> {
     type Error = Error;
 
     fn next_element_seed<T: DeserializeSeed<'a>>(&mut self, seed: T) -> Result<Option<T::Value>> {
-        self.args.next().map(|v| seed.deserialize(v)).transpose()
+        self.args
+            .next()
+            .map(|v| v.wrap(seed.deserialize(v)))
+            .transpose()
     }
 
     fn size_hint(&self) -> Option<usize> {
@@ -1230,7 +1239,10 @@ impl<'a> SeqAccess<'a> for NodeList<'a> {
     type Error = Error;
 
     fn next_element_seed<T: DeserializeSeed<'a>>(&mut self, seed: T) -> Result<Option<T::Value>> {
-        self.nodes.next().map(|n| seed.deserialize(n)).transpose()
+        self.nodes
+            .next()
+            .map(|n| n.wrap(seed.deserialize(n)))
+            .transpose()
     }
 
     fn size_hint(&self) -> Option<usize> {
@@ -1268,16 +1280,17 @@ impl<'a> SeqAccess<'a> for NodeSeq<'a> {
 
     fn next_element_seed<T: DeserializeSeed<'a>>(&mut self, seed: T) -> Result<Option<T::Value>> {
         if let Some(v) = self.args.next() {
-            return seed.deserialize(v).map(Some);
+            return v.wrap(seed.deserialize(v)).map(Some);
         }
         let Some(n) = self.nodes.next() else {
             return Ok(None);
         };
         let mut mode = Mode::Undecided;
-        let value = seed.deserialize(ElemDe {
-            de: NodeDe::new(n),
+        let de = NodeDe::new(n);
+        let value = de.wrap(seed.deserialize(ElemDe {
+            de,
             mode: &mut mode,
-        })?;
+        }))?;
         if mode == Mode::Args {
             let rest: Vec<ValueDe<'a>> = NodeDe::new(n).args().skip(1).map(ValueDe::new).collect();
             self.args = rest.into_iter();

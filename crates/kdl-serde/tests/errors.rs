@@ -225,3 +225,74 @@ fn duplicate_across_files() {
     let rendered = render_width(&e, 1000).replace(dir.path().to_str().unwrap(), "<dir>");
     insta::assert_snapshot!(rendered);
 }
+
+#[test]
+fn duplicate_name() {
+    #[derive(Debug, Deserialize)]
+    struct S {}
+    let loaded = kdl_load::load_str(
+        "schema.kdl",
+        "struct User { }\nstruct Post { }\nstruct User { }\n",
+    )
+    .unwrap();
+    let e = kdl_serde::named_map::<S>(&loaded, "struct").unwrap_err();
+    assert_eq!(e.code(), "kdl_nodes::duplicate_name");
+    insta::assert_snapshot!(render(&e));
+}
+
+#[test]
+fn expected_identifier() {
+    #[derive(Debug, Deserialize)]
+    struct S {}
+    let loaded = kdl_load::load_str("schema.kdl", "struct User { }\nstruct 5 { }\n").unwrap();
+    let e = kdl_serde::named_blocks::<S>(&loaded, "struct").unwrap_err();
+    assert_eq!(e.code(), "kdl_nodes::expected_identifier");
+    insta::assert_snapshot!(render(&e));
+}
+
+#[test]
+fn invalid_length() {
+    #[derive(Debug, Deserialize)]
+    struct Doc {
+        point: (i32, i32),
+    }
+    let e = fail::<Doc>("point 1\n");
+    assert_eq!(e.code(), "kdl_serde::invalid_length");
+    insta::assert_snapshot!(render(&e));
+}
+
+#[test]
+fn custom_error_points_at_the_node() {
+    #[derive(Debug)]
+    struct Date;
+    impl<'de> Deserialize<'de> for Date {
+        fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+            let s = String::deserialize(d)?;
+            Err(serde::de::Error::custom(format!("`{s}` is not a date")))
+        }
+    }
+    #[derive(Debug, Deserialize)]
+    struct Doc {
+        when: Date,
+    }
+    let e = fail::<Doc>("when \"yesterday\"\n");
+    assert_eq!(e.code(), "kdl_serde::custom");
+    assert_eq!(e.line_col(), Some((1, 1)));
+    insta::assert_snapshot!(render(&e));
+}
+
+#[test]
+fn unsupported() {
+    let e = kdl_serde::to_string(&BTreeMap::from([("a", u128::MAX)])).unwrap_err();
+    assert_eq!(e.code(), "kdl_serde::unsupported");
+    assert!(e.labels().is_empty());
+    insta::assert_snapshot!(render(&e));
+}
+
+#[test]
+fn io() {
+    let e = kdl_serde::from_file::<Server>("/nonexistent/kdl-serde/config.kdl").unwrap_err();
+    assert_eq!(e.code(), "kdl_load::io");
+    assert!(core::error::Error::source(&e).is_some());
+    insta::assert_snapshot!(render(&e));
+}

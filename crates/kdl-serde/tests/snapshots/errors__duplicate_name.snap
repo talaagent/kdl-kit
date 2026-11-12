@@ -1,0 +1,17 @@
+---
+source: crates/kdl-serde/tests/errors.rs
+expression: render(&e)
+---
+kdl_nodes::duplicate_name (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_nodes-duplicate_name)
+
+  × duplicate struct `User`
+   ╭─[schema.kdl:3:8]
+ 1 │ struct User { }
+   ·        ──┬─
+   ·          ╰── first defined here
+ 2 │ struct Post { }
+ 3 │ struct User { }
+   ·        ──┬─
+   ·          ╰── defined again here
+   ╰────
+  help: rename or remove one of them
