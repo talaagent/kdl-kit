@@ -1,0 +1,23 @@
+node (t)"x" key = /* c */ 1 \ // continued
+   2 /- (u)3 /-k=#"raw"# r=##"a"#b"## #"""
+      line one
+        two "x"
+      """# end
+  multi """
+    hi
+      there
+    """ ;  other ##"""
+   a "#
+   """## /* x */
+(ty)typed /-{ a; b } /-{ c }; x /* y */
+nested {
+  /-gone 1 { deep }
+  /* own */
+  keep #true #null 0xff 1.5e3 "a\tb"
+}
+empty {}
+cmt { /* only */ }
+ws #"""
+  a
+
+  """#

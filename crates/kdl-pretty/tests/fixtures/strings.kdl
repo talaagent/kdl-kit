@@ -1,0 +1,18 @@
+// Strings with newlines become `"""` strings at the node's depth + 1.
+outer {
+    escaped "line 1\nline 2\n\n  indented"
+    trailing "ends with spaces   \nand\ttab\t\nok"
+    blank "a\n   \nb"
+    quotes "has \"\"\" inside\nsecond"
+    raw #"C:\path\"quoted""#
+    hashes ##"a "# b"##
+    rawml #"""
+        no \escapes here
+          kept "as is"
+        """#
+    rawws #"""
+        a
+        b
+        """#
+    rawonce "x\n  \ny"
+}

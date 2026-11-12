@@ -12,8 +12,8 @@ publish.workspace = true
 [dependencies]
 kdl.workspace = true
 
-[features]
-
-
 [lints]
 workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
