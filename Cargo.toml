@@ -22,6 +22,7 @@ rayon = "1"
 anyhow = "1"
 pico-args = "0.5"
 kdl-span = { path = "crates/kdl-span" }
+kdl-tree = { path = "crates/kdl-tree" }
 kdl-load = { path = "crates/kdl-load", default-features = false }
 kdl-nodes = { path = "crates/kdl-nodes" }
 kdl-pretty = { path = "crates/kdl-pretty" }

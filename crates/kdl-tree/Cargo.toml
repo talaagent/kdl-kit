@@ -1,0 +1,27 @@
+[package]
+name = "kdl-tree"
+description = "A fast KDL v2 parser into a borrowed document tree with byte spans everywhere"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+kdl = { workspace = true, optional = true }
+
+[features]
+# Conversions to and from `kdl::KdlDocument`.
+kdl = ["dep:kdl"]
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+# The tests compare against `kdl` through the conversions.
+kdl-tree = { path = ".", features = ["kdl"] }
+kdl.workspace = true
+proptest.workspace = true

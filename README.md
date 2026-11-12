@@ -9,6 +9,7 @@ kdl-serde = { git = "https://github.com/talaagent/kdl-serde" }
 
 | Crate | What | Depends on |
 | --- | --- | --- |
+| [`kdl-tree`](crates/kdl-tree) | Fast KDL v2 parser (338/338 on the official suite) into a borrowed tree with byte spans on every part; depth-capped | thiserror (kdl, optional) |
 | [`kdl-span`](crates/kdl-span) | Source maps (files in one offset space), `Span { file, offset, len }`, lazy line/col, labels, did-you-mean | kdl |
 | [`kdl-load`](crates/kdl-load) | Load a string, file or directory of `*.kdl` (sorted, recursive or not, parallel) as one document with a source map | kdl, kdl-span (rayon) |
 | [`kdl-nodes`](crates/kdl-nodes) | Untyped helpers: `<kind> <name> { … }` blocks, single identifiers, duplicate names, child walking | kdl, kdl-span |

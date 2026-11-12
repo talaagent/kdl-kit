@@ -2,3 +2,9 @@ kdl-serde
 Copyright 2026 Ian Macalinao
 
 Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+crates/kdl-tree/src/parse.rs is derived from club-kdl 0.17.0
+(https://github.com/chronista-club/club-kdl), src/parse.rs,
+Copyright 2025-2026 Mako (mito@chronista.club),
+licensed under the MIT license or the Apache License, Version 2.0, used here
+under the Apache License, Version 2.0.

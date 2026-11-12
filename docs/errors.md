@@ -24,6 +24,109 @@ The input is not valid KDL v2. The label points at the first syntax problem kdl 
 host "unterminated
 ```
 
+<a id="kdl_tree-unexpected"></a>
+
+## `kdl_tree::unexpected`
+
+The grammar does not allow what is here: a missing node name, value, `)` or node terminator, an entry with no whitespace before it, or a stray `}`. It is reported as [`kdl_load::parse`](#kdl_load-parse) with this kind.
+
+```kdl
+node "a""b"
+```
+
+<a id="kdl_tree-unterminated"></a>
+
+## `kdl_tree::unterminated`
+
+A string, block comment or children block runs to the end of the input. The label points at where it starts (for a children block, at the end of the input). It is reported as [`kdl_load::parse`](#kdl_load-parse) with this kind.
+
+```kdl
+host "localhost
+```
+
+<a id="kdl_tree-disallowed_char"></a>
+
+## `kdl_tree::disallowed_char`
+
+A code point KDL forbids anywhere: control characters other than whitespace, bidi overrides, or a byte-order mark after the start. It is reported as [`kdl_load::parse`](#kdl_load-parse) with this kind.
+
+```text
+node "a<U+0007>b"
+```
+
+<a id="kdl_tree-invalid_number"></a>
+
+## `kdl_tree::invalid_number`
+
+A number is malformed (`0x` with no digits, `1.2.3`, letters after the digits) or does not fit in an `i128`. It is reported as [`kdl_load::parse`](#kdl_load-parse) with this kind.
+
+```kdl
+port 0x
+```
+
+<a id="kdl_tree-invalid_identifier"></a>
+
+## `kdl_tree::invalid_identifier`
+
+A bare identifier is a KDL keyword (`true`, `false`, `null`, `inf`, `-inf`, `nan`) or looks like a number (`.5`). Write `#true` for the keyword, or quote the string. It is reported as [`kdl_load::parse`](#kdl_load-parse) with this kind.
+
+```kdl
+enabled true
+```
+
+<a id="kdl_tree-invalid_keyword"></a>
+
+## `kdl_tree::invalid_keyword`
+
+A `#` keyword that KDL does not have; the keywords are `#true`, `#false`, `#null`, `#inf`, `#-inf` and `#nan`. It is reported as [`kdl_load::parse`](#kdl_load-parse) with this kind.
+
+```kdl
+enabled #yes
+```
+
+<a id="kdl_tree-invalid_string"></a>
+
+## `kdl_tree::invalid_string`
+
+A string is malformed: a newline in a single-line string, a multi-line string without a newline after its opening `"""`, or a line that does not start with the closing line's indentation. It is reported as [`kdl_load::parse`](#kdl_load-parse) with this kind.
+
+```kdl
+text """
+  one
+ two
+  """
+```
+
+<a id="kdl_tree-invalid_escape"></a>
+
+## `kdl_tree::invalid_escape`
+
+An unknown escape (`\q`) or a malformed `\u{…}` in a quoted string. It is reported as [`kdl_load::parse`](#kdl_load-parse) with this kind.
+
+```kdl
+path "C:\Users"
+```
+
+<a id="kdl_tree-children_order"></a>
+
+## `kdl_tree::children_order`
+
+An argument or property after a node's children block, or a second children block. It is reported as [`kdl_load::parse`](#kdl_load-parse) with this kind.
+
+```kdl
+node { child } extra=1
+```
+
+<a id="kdl_tree-too_deep"></a>
+
+## `kdl_tree::too_deep`
+
+Children blocks are nested deeper than the parser's limit (`kdl_tree::ParseOptions::max_depth`, 256 by default), which keeps hostile input from overflowing the stack. It is reported as [`kdl_load::parse`](#kdl_load-parse) with this kind.
+
+```text
+a { a { a { … 257 levels … } } }
+```
+
 <a id="kdl_nodes-duplicate_name"></a>
 
 ## `kdl_nodes::duplicate_name`

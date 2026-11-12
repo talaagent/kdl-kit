@@ -24,9 +24,15 @@ jobs:
         run: |
           nix develop -c cargo clippy --workspace --all-targets -- -D warnings
           nix develop -c cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: official KDL test suite (kdl-org/kdl, pinned)
+        run: |
+          git init -q target/kdl-spec
+          git -C target/kdl-spec fetch -q --depth 1 https://github.com/kdl-org/kdl.git 89c1087d5e7f530de328f18b6a0fad54ca8ea227
+          git -C target/kdl-spec checkout -q FETCH_HEAD
+          KDL_SPEC_DIR=$PWD/target/kdl-spec nix develop -c cargo test -p kdl-tree --test spec -- --nocapture
       - name: test (each crate, without and with miette)
         run: |
-          for p in kdl-span kdl-load kdl-nodes kdl-pretty kdl-serde; do
+          for p in kdl-tree kdl-span kdl-load kdl-nodes kdl-pretty kdl-serde; do
             nix develop -c cargo test -p "$p" --no-default-features
             nix develop -c cargo test -p "$p" --features miette 2>/dev/null \
               || nix develop -c cargo test -p "$p"
@@ -34,7 +40,7 @@ jobs:
           nix develop -c cargo test --workspace --all-features
       - name: only kdl-serde depends on serde
         run: |
-          for p in kdl-span kdl-load kdl-nodes kdl-pretty; do
+          for p in kdl-tree kdl-span kdl-load kdl-nodes kdl-pretty; do
             if nix develop -c cargo tree -p "$p" -e normal --all-features | grep -qE '(^|[ ─])serde(_[a-z]+)? v'; then
               echo "$p depends on serde"; exit 1
             fi
