@@ -1,0 +1,22 @@
+---
+source: tests/fixtures.rs
+expression: rewrite(&file)
+---
+settings {
+  theme "dark"
+  font-size 14
+  autosave #true
+  autosave-interval 30.5
+  max-upload (bytes)10485760
+  editor {
+    tab-width 4
+    soft-wrap #false
+  }
+  keybindings "quit" "ctrl+q"
+  keybindings "save" "ctrl+s"
+  plugins "git" "lsp"
+  motd """
+    Welcome back!
+      Remember: "measure twice".
+    """
+}

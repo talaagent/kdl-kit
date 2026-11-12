@@ -1,0 +1,18 @@
+struct Foo {
+  doc "A foo, the canonical example."
+  field id "u64" required=#true
+  field name "string" {
+    doc "Display name."
+    default "unnamed"
+  }
+  field tags (list)"string"
+  field owner (ref)"User"
+}
+
+enum Color {
+  variant red
+  variant green value=2
+  variant blue
+}
+
+alias UserId "u64"

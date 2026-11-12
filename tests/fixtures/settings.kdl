@@ -1,0 +1,21 @@
+settings {
+  theme "dark"
+  font-size 14
+  autosave #true
+  autosave-interval 30.5
+  max-upload (bytes)10485760
+  proxy #null
+  editor tab-width=4 soft-wrap=#false
+  keybindings {
+    save "ctrl+s"
+    quit "ctrl+q"
+  }
+  plugins {
+    - "git"
+    - "lsp"
+  }
+  motd """
+    Welcome back!
+      Remember: "measure twice".
+    """
+}

@@ -1,0 +1,29 @@
+// An organization with its people and deployments.
+org acme {
+  display-name "Acme Corp"
+  founded 1999
+  billing plan="team" seats=25
+
+  member ada role="owner" {
+    email "ada@acme.example"
+    email "ada@lovelace.example"
+    tags "math" "engines"
+  }
+  member grace role="admin" {
+    email "grace@acme.example"
+  }
+  member linus
+
+  site eu {
+    region "eu-west-1"
+    replicas 3
+    domains "acme.eu" "www.acme.eu"
+    env LOG_LEVEL "info"
+    env FEATURE_X "on"
+  }
+  site us {
+    region "us-east-1"
+    replicas 5
+    domains "acme.com"
+  }
+}
