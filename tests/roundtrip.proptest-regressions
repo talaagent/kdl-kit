@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 3c4e06ee95a9d9b4b69d12657f7706d46e3ca21689c17bd4864dd8b59d67de25 # shrinks to doc = Doc { text: "a", small: 0, signed: 0, big: 0, float: 0.0, single: 0.0, ch: '0', yes: false, maybe: None, unit: (), pair: (0, "a"), strings: [], ints: [], grid: [], leaf: [], by_name: {}, counts: {}, by_num: {}, kind: Unit, kinds: [], opt_list: None, sparse: [], note: Annotated { ty: None, value: "a" }, nested: None }

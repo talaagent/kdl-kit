@@ -117,6 +117,8 @@ enum Out {
     /// A struct (or `RawDocument`): arguments, properties and children.
     Body(Body),
     Seq(Vec<Out>),
+    /// A tuple: like a sequence, but always one node (`point 1 2`).
+    Tuple(Vec<Out>),
     Map(Vec<(KdlValue, Out)>),
     /// A unit, newtype, tuple or struct variant and its content.
     Variant(&'static str, Box<Out>),
@@ -189,6 +191,10 @@ impl Lower<'_> {
         match out {
             Out::None => Ok(()),
             Out::Seq(items) => self.seq_field(name, items, nodes),
+            Out::Tuple(items) => {
+                nodes.push(self.node(name, Out::Seq(items))?);
+                Ok(())
+            }
             Out::Map(entries) if self.opts.map_style == MapStyle::Keyed && !entries.is_empty() => {
                 for (key, value) in entries {
                     let mut node = self.node(name, value)?;
@@ -280,7 +286,7 @@ impl Lower<'_> {
                 node.entries_mut().extend(body.props);
                 set_children(&mut node, body.children);
             }
-            Out::Seq(items) => {
+            Out::Seq(items) | Out::Tuple(items) => {
                 let scalars: Option<Vec<KdlEntry>> = items.iter().map(Out::scalar).collect();
                 match scalars {
                     Some(scalars) => node.entries_mut().extend(scalars),
@@ -375,7 +381,7 @@ impl Lower<'_> {
                     self.field(&key_name(&key)?, value, nodes)?;
                 }
             }
-            Out::Seq(items) => {
+            Out::Seq(items) | Out::Tuple(items) => {
                 for item in items {
                     nodes.push(self.element(item)?);
                 }
@@ -447,7 +453,7 @@ fn body_from_fields(lower: &Lower<'_>, fields: Vec<(String, Out)>) -> Result<Bod
         }
         match key.as_str() {
             "$args" => match out {
-                Out::Seq(items) => {
+                Out::Seq(items) | Out::Tuple(items) => {
                     for item in items {
                         rest_args.push(item.scalar().ok_or_else(|| {
                             Error::unsupported("`$args` must hold a sequence of scalars")
@@ -471,7 +477,7 @@ fn body_from_fields(lower: &Lower<'_>, fields: Vec<(String, Out)>) -> Result<Bod
                 _ => return Err(Error::unsupported("`$type` must hold a string")),
             },
             "$children" => match out {
-                Out::Seq(items) => {
+                Out::Seq(items) | Out::Tuple(items) => {
                     for item in items {
                         body.children.push(lower.element(item)?);
                     }
@@ -668,13 +674,17 @@ impl<'o> ser::Serializer for OutSer<'o> {
             opts: self.opts,
             items: Vec::with_capacity(len.unwrap_or(0)),
             variant: None,
+            tuple: false,
         })
     }
     fn serialize_tuple(self, len: usize) -> Result<SeqSer<'o>> {
-        self.serialize_seq(Some(len))
+        Ok(SeqSer {
+            tuple: true,
+            ..self.serialize_seq(Some(len))?
+        })
     }
     fn serialize_tuple_struct(self, _name: &'static str, len: usize) -> Result<SeqSer<'o>> {
-        self.serialize_seq(Some(len))
+        self.serialize_tuple(len)
     }
     fn serialize_tuple_variant(
         self,
@@ -685,7 +695,7 @@ impl<'o> ser::Serializer for OutSer<'o> {
     ) -> Result<SeqSer<'o>> {
         Ok(SeqSer {
             variant: Some(variant),
-            ..self.serialize_seq(Some(len))?
+            ..self.serialize_tuple(len)?
         })
     }
 
@@ -727,6 +737,7 @@ struct SeqSer<'o> {
     opts: &'o Options,
     items: Vec<Out>,
     variant: Option<&'static str>,
+    tuple: bool,
 }
 
 impl SeqSer<'_> {
@@ -740,7 +751,11 @@ impl SeqSer<'_> {
     }
 
     fn finish(self) -> Out {
-        let seq = Out::Seq(self.items);
+        let seq = if self.tuple {
+            Out::Tuple(self.items)
+        } else {
+            Out::Seq(self.items)
+        };
         match self.variant {
             Some(v) => Out::Variant(v, Box::new(seq)),
             None => seq,
