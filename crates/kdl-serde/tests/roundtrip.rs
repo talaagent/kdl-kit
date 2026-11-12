@@ -182,7 +182,7 @@ fn check(doc: &Doc) -> Result<(), TestCaseError> {
     for opts in styles() {
         let text = kdl_serde::to_string_with(doc, &opts).unwrap();
         let back: Doc = kdl_serde::from_str(&text)
-            .map_err(|e| TestCaseError::fail(format!("{:?}\n{text}", miette::Report::new(e))))?;
+            .map_err(|e| TestCaseError::fail(format!("{:?}\n{text}", e)))?;
         prop_assert_eq!(&back, doc, "{:?}\n{}", opts, text);
         // Formatting is deterministic and stable.
         let again = kdl_serde::to_string_with(&back, &opts).unwrap();
@@ -190,7 +190,7 @@ fn check(doc: &Doc) -> Result<(), TestCaseError> {
     }
     let compact = kdl_serde::to_string(doc).unwrap();
     let back: Doc = kdl_serde::from_str(&compact)
-        .map_err(|e| TestCaseError::fail(format!("{:?}\n{compact}", miette::Report::new(e))))?;
+        .map_err(|e| TestCaseError::fail(format!("{:?}\n{compact}", e)))?;
     prop_assert_eq!(&back, doc);
     Ok(())
 }
@@ -213,7 +213,7 @@ proptest! {
             doc.nodes_mut().push(node);
             let text = kdl_pretty::format(&doc, &kdl_pretty::Options::default());
             let parsed: kdl::KdlDocument = text.parse().map_err(|e: kdl::KdlError| {
-                TestCaseError::fail(format!("{:?}\n{text}", miette::Report::new(e)))
+                TestCaseError::fail(format!("{:?}\n{text}", e))
             })?;
             let n = &parsed.nodes()[0];
             prop_assert_eq!(n.name().value(), s.as_str());

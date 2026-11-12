@@ -1,10 +1,10 @@
 ---
-source: tests/errors.rs
+source: crates/kdl-serde/tests/errors.rs
 expression: render(&e)
 ---
-kdl_serde::invalid_value
+kdl_serde::invalid_value (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_serde-invalid_value)
 
-  × invalid value: integer `70000`, expected u16 at config.kdl:2:6
+  × invalid value: integer `70000`, expected u16
    ╭─[config.kdl:2:6]
  1 │ host "h"
  2 │ port 70000

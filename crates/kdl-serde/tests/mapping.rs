@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 fn de<T: serde::de::DeserializeOwned>(s: &str) -> T {
     match kdl_serde::from_str(s) {
         Ok(v) => v,
-        Err(e) => panic!("{:?}", miette::Report::new(e)),
+        Err(e) => panic!("{:?}", e),
     }
 }
 

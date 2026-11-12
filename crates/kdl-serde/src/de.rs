@@ -15,7 +15,6 @@
 //! own span on errors that come back without one, so the innermost span wins.
 
 use alloc::borrow::Cow;
-use alloc::sync::Arc;
 
 use kdl::{KdlEntry, KdlNode, KdlValue};
 use miette::SourceSpan;
@@ -24,14 +23,13 @@ use serde::de::{
     SeqAccess, Unexpected, VariantAccess, Visitor,
 };
 
-use crate::error::{Error, ErrorKind, Result, Source};
+use crate::error::{Error, ErrorKind, Result};
 use crate::magic;
 
 /// A node and the source it came from.
 #[derive(Clone, Copy)]
 pub(crate) struct NodeRef<'a> {
     pub(crate) node: &'a KdlNode,
-    pub(crate) src: &'a Arc<Source>,
 }
 
 impl<'a> NodeRef<'a> {
@@ -44,12 +42,11 @@ impl<'a> NodeRef<'a> {
     }
 
     fn children(self) -> impl Iterator<Item = NodeRef<'a>> {
-        let src = self.src;
         self.node
             .children()
             .into_iter()
             .flat_map(|d| d.nodes())
-            .map(move |node| NodeRef { node, src })
+            .map(move |node| NodeRef { node })
     }
 
     fn has_children(self) -> bool {
@@ -61,10 +58,6 @@ fn is_dash_block(n: NodeRef<'_>) -> bool {
     n.has_children() && n.children().all(|c| c.name() == "-")
 }
 
-fn same_source(a: NodeRef<'_>, b: NodeRef<'_>) -> bool {
-    Arc::ptr_eq(a.src, b.src)
-}
-
 // ---------------------------------------------------------------------------
 // ValueDe: one argument or property value.
 
@@ -72,16 +65,14 @@ fn same_source(a: NodeRef<'_>, b: NodeRef<'_>) -> bool {
 #[derive(Clone, Copy)]
 pub(crate) struct ValueDe<'a> {
     entry: &'a KdlEntry,
-    src: &'a Arc<Source>,
     /// The `(type)` annotation was taken by an enum or `Annotated`.
     ty_used: bool,
 }
 
 impl<'a> ValueDe<'a> {
-    fn new(entry: &'a KdlEntry, src: &'a Arc<Source>) -> Self {
+    fn new(entry: &'a KdlEntry) -> Self {
         Self {
             entry,
-            src,
             ty_used: false,
         }
     }
@@ -94,7 +85,7 @@ impl<'a> ValueDe<'a> {
     }
 
     fn wrap<T>(&self, r: Result<T>) -> Result<T> {
-        r.map_err(|e| e.at(self.src, self.entry.span()))
+        r.map_err(|e| e.at(self.entry.span()))
     }
 
     fn unexpected(&self) -> Unexpected<'a> {
@@ -112,7 +103,7 @@ impl<'a> ValueDe<'a> {
 
     fn visit<V: Visitor<'a>>(self, visitor: V) -> Result<V::Value> {
         let r = match self.entry.value() {
-            KdlValue::String(s) => visitor.visit_str(s),
+            KdlValue::String(s) => visitor.visit_borrowed_str(s),
             KdlValue::Integer(i) => visit_int(*i, visitor),
             KdlValue::Float(f) => visitor.visit_f64(*f),
             KdlValue::Bool(b) => visitor.visit_bool(*b),
@@ -233,7 +224,7 @@ impl<'a> Deserializer<'a> for ValueDe<'a> {
                 ty_used: true,
                 ..self
             };
-            return self.wrap(visitor.visit_map(AnnotatedAccess::new(ty, self.src, value)));
+            return self.wrap(visitor.visit_map(AnnotatedAccess::new(ty, value)));
         }
         self.deserialize_seq(visitor)
     }
@@ -245,7 +236,7 @@ impl<'a> Deserializer<'a> for ValueDe<'a> {
         visitor: V,
     ) -> Result<V::Value> {
         if let (Some(ty), Some(ident)) = (self.ty(), self.entry.ty()) {
-            let tag = Tag::new(ty, self.src, ident.span());
+            let tag = Tag::new(ty, ident.span());
             let content = ValueDe {
                 ty_used: true,
                 ..self
@@ -254,9 +245,8 @@ impl<'a> Deserializer<'a> for ValueDe<'a> {
         }
         match self.entry.value() {
             KdlValue::String(s) => {
-                let tag = Tag::new(s, self.src, self.entry.span());
+                let tag = Tag::new(s, self.entry.span());
                 let content = Nothing {
-                    src: self.src,
                     span: self.entry.span(),
                 };
                 self.wrap(visitor.visit_enum(Enum { tag, content }))
@@ -283,6 +273,14 @@ pub(crate) struct NodeDe<'a> {
 }
 
 impl<'a> NodeDe<'a> {
+    /// A named block's body: the node minus its first argument (the name).
+    pub(crate) fn named_body(node: &'a KdlNode) -> Self {
+        Self {
+            skip_args: 1,
+            ..Self::new(NodeRef { node })
+        }
+    }
+
     pub(crate) fn new(n: NodeRef<'a>) -> Self {
         Self {
             n,
@@ -327,11 +325,11 @@ impl<'a> NodeDe<'a> {
     }
 
     fn wrap<T>(&self, r: Result<T>) -> Result<T> {
-        r.map_err(|e| e.at(self.n.src, self.n.name_span()))
+        r.map_err(|e| e.at(self.n.name_span()))
     }
 
     fn err(&self, kind: ErrorKind, msg: impl Into<String>) -> Error {
-        Error::new(kind, msg).at(self.n.src, self.n.name_span())
+        Error::new(kind, msg).at(self.n.name_span())
     }
 
     /// The node's single argument, for scalar targets.
@@ -343,7 +341,7 @@ impl<'a> NodeDe<'a> {
                 format!("expected a single value for `{name}`, found a property"),
             )
             .with_label("unexpected property")
-            .at(self.n.src, prop.span()));
+            .at(prop.span()));
         }
         if self.n.has_children() {
             return Err(self
@@ -370,9 +368,9 @@ impl<'a> NodeDe<'a> {
             )
             .with_label("unexpected argument")
             .with_help("only sequence fields (`Vec<T>`, tuples) take several arguments")
-            .at(self.n.src, extra.span()));
+            .at(extra.span()));
         }
-        Ok(ValueDe::new(first, self.n.src))
+        Ok(ValueDe::new(first))
     }
 
     fn fields(&self, fields: &'static [&'static str]) -> Result<Fields<'a>> {
@@ -495,7 +493,7 @@ impl<'a> Deserializer<'a> for NodeDe<'a> {
                 ),
             )
             .with_label("unexpected property")
-            .at(self.n.src, prop.span()));
+            .at(prop.span()));
         }
         if self.arg_count() > 0 && self.n.has_children() {
             return Err(self.err(
@@ -506,8 +504,7 @@ impl<'a> Deserializer<'a> for NodeDe<'a> {
                 ),
             ));
         }
-        let src = self.n.src;
-        let args: Vec<ValueDe<'a>> = self.args().map(|e| ValueDe::new(e, src)).collect();
+        let args: Vec<ValueDe<'a>> = self.args().map(ValueDe::new).collect();
         if !args.is_empty() {
             return self.wrap(visitor.visit_seq(ArgSeq {
                 args: args.into_iter(),
@@ -551,7 +548,7 @@ impl<'a> Deserializer<'a> for NodeDe<'a> {
                 ty_used: true,
                 ..self
             };
-            return self.wrap(visitor.visit_map(AnnotatedAccess::new(ty, self.n.src, value)));
+            return self.wrap(visitor.visit_map(AnnotatedAccess::new(ty, value)));
         }
         let fields = self.fields(fields)?;
         self.wrap(visitor.visit_map(fields))
@@ -565,7 +562,7 @@ impl<'a> Deserializer<'a> for NodeDe<'a> {
     ) -> Result<V::Value> {
         // `(Variant)node …`
         if let Some(ty) = self.ty() {
-            let tag = Tag::new(ty.value(), self.n.src, ty.span());
+            let tag = Tag::new(ty.value(), ty.span());
             let content = NodeDe {
                 ty_used: true,
                 ..self
@@ -574,7 +571,7 @@ impl<'a> Deserializer<'a> for NodeDe<'a> {
         }
         // `Variant …` inside `$children` or a top-level sequence.
         if self.name_is_variant {
-            let tag = Tag::new(self.n.name(), self.n.src, self.n.name_span());
+            let tag = Tag::new(self.n.name(), self.n.name_span());
             let content = NodeDe {
                 name_is_variant: false,
                 ..self
@@ -590,7 +587,7 @@ impl<'a> Deserializer<'a> for NodeDe<'a> {
             let children: Vec<NodeRef<'a>> = self.n.children().collect();
             if children.iter().all(|c| c.name() == children[0].name()) {
                 let first = children[0];
-                let tag = Tag::new(first.name(), first.src, first.name_span());
+                let tag = Tag::new(first.name(), first.name_span());
                 let content = GroupDe { nodes: children };
                 return self.wrap(visitor.visit_enum(Enum { tag, content }));
             }
@@ -630,14 +627,8 @@ impl<'a> GroupDe<'a> {
             )
             .with_label("given again here")
             .with_help("remove one of them, or make the field a `Vec` to accept several");
-            if same_source(first, *second) {
-                e = e.with_secondary(first.name_span(), "first given here");
-            } else if let Some(file) = &first.src.name {
-                e = e.with_help(format!(
-                    "first given in {file}; remove one of them, or make the field a `Vec`"
-                ));
-            }
-            return Err(e.at(second.src, second.name_span()));
+            e = e.with_secondary(first.name_span(), "first given here");
+            return Err(e.at(second.name_span()));
         }
         Ok(NodeDe::new(first))
     }
@@ -770,20 +761,16 @@ impl<'a> Deserializer<'a> for GroupDe<'a> {
 pub(crate) struct BlockDe<'a> {
     nodes: Vec<NodeRef<'a>>,
     /// Where to point errors about the block as a whole.
-    src: &'a Arc<Source>,
     span: SourceSpan,
 }
 
 impl<'a> BlockDe<'a> {
-    pub(crate) fn new(nodes: Vec<NodeRef<'a>>, src: &'a Arc<Source>, span: SourceSpan) -> Self {
-        Self { nodes, src, span }
+    pub(crate) fn new(nodes: Vec<NodeRef<'a>>, span: SourceSpan) -> Self {
+        Self { nodes, span }
     }
 
     fn wrap<T>(&self, r: Result<T>) -> Result<T> {
-        r.map_err(|e| {
-            e.with_label_if_unset("in this document")
-                .at(self.src, self.span)
-        })
+        r.map_err(|e| e.with_label_if_unset("in this document").at(self.span))
     }
 
     fn not_a_value(&self) -> Error {
@@ -791,7 +778,7 @@ impl<'a> BlockDe<'a> {
             ErrorKind::InvalidType,
             "expected a single value, found a document; deserialize into a struct or map",
         )
-        .at(self.src, self.span)
+        .at(self.span)
     }
 }
 
@@ -828,7 +815,7 @@ impl<'a> Deserializer<'a> for BlockDe<'a> {
                 ErrorKind::InvalidType,
                 "expected an empty document, found a node",
             )
-            .at(n.src, n.name_span())),
+            .at(n.name_span())),
         }
     }
 
@@ -862,7 +849,7 @@ impl<'a> Deserializer<'a> for BlockDe<'a> {
                     ErrorKind::InvalidLength,
                     format!("expected exactly one node, found {}", self.nodes.len()),
                 )
-                .at(self.src, self.span)),
+                .at(self.span)),
             },
             _ => visitor.visit_newtype_struct(self),
         }
@@ -919,7 +906,7 @@ impl<'a> Deserializer<'a> for BlockDe<'a> {
         // A document holding one enum value: the single node names the variant.
         match self.nodes.as_slice() {
             [one] => {
-                let tag = Tag::new(one.name(), one.src, one.name_span());
+                let tag = Tag::new(one.name(), one.name_span());
                 visitor.visit_enum(Enum {
                     tag,
                     content: NodeDe::new(*one),
@@ -932,7 +919,7 @@ impl<'a> Deserializer<'a> for BlockDe<'a> {
                     self.nodes.len()
                 ),
             )
-            .at(self.src, self.span)),
+            .at(self.span)),
         }
     }
 }
@@ -943,7 +930,6 @@ impl<'a> Deserializer<'a> for BlockDe<'a> {
 /// A key: a field name, property name, node name or `$N`.
 struct Key<'a> {
     name: Cow<'a, str>,
-    src: &'a Arc<Source>,
     span: SourceSpan,
     /// The key is a property, so errors say "property", not "field".
     prop: bool,
@@ -967,7 +953,6 @@ struct Fields<'a> {
 impl<'a> Fields<'a> {
     fn of_node(de: NodeDe<'a>, fields: &'static [&'static str]) -> Result<Self> {
         let n = de.n;
-        let src = n.src;
         let mut out: Vec<(Key<'a>, Val<'a>)> = Vec::new();
         let has = |f: &str| fields.contains(&f);
 
@@ -975,11 +960,10 @@ impl<'a> Fields<'a> {
         let mut rest = Vec::new();
         for (i, arg) in de.args().enumerate() {
             let name = format!("${i}");
-            let value = ValueDe::new(arg, src);
+            let value = ValueDe::new(arg);
             if has(&name) || !has("$args") {
                 let key = Key {
                     name: Cow::Owned(name),
-                    src,
                     span: arg.span(),
                     prop: false,
                 };
@@ -991,7 +975,6 @@ impl<'a> Fields<'a> {
         if has("$args") {
             let key = Key {
                 name: Cow::Borrowed("$args"),
-                src,
                 span: n.name_span(),
                 prop: false,
             };
@@ -1000,20 +983,18 @@ impl<'a> Fields<'a> {
         if has("$name") {
             let key = Key {
                 name: Cow::Borrowed("$name"),
-                src,
                 span: n.name_span(),
                 prop: false,
             };
-            out.push((key, Val::Str(StrDe::new(n.name(), src, n.name_span()))));
+            out.push((key, Val::Str(StrDe::new(n.name(), n.name_span()))));
         }
         if let (true, Some(ty)) = (has("$type"), de.ty()) {
             let key = Key {
                 name: Cow::Borrowed("$type"),
-                src,
                 span: ty.span(),
                 prop: false,
             };
-            out.push((key, Val::Str(StrDe::new(ty.value(), src, ty.span()))));
+            out.push((key, Val::Str(StrDe::new(ty.value(), ty.span()))));
         }
 
         // Properties: `@key` fields, or plain fields. The last one wins, as
@@ -1037,17 +1018,16 @@ impl<'a> Fields<'a> {
             };
             let k = Key {
                 name,
-                src,
                 span: prop.span(),
                 prop: true,
             };
-            out.push((k, Val::Value(ValueDe::new(prop, src))));
+            out.push((k, Val::Value(ValueDe::new(prop))));
         }
 
         let children: Vec<NodeRef<'a>> = n.children().collect();
         Self::push_children(&mut out, &children, fields, &prop_names)?;
         let span = n.node.children().map_or(n.name_span(), |c| c.span());
-        Self::push_rest(&mut out, children, fields, src, span);
+        Self::push_rest(&mut out, children, fields, span);
         Ok(Self {
             entries: out.into_iter(),
             value: None,
@@ -1057,7 +1037,7 @@ impl<'a> Fields<'a> {
     fn of_block(block: &BlockDe<'a>, fields: &'static [&'static str]) -> Result<Self> {
         let mut out = Vec::new();
         Self::push_children(&mut out, &block.nodes, fields, &[])?;
-        Self::push_rest(&mut out, block.nodes.clone(), fields, block.src, block.span);
+        Self::push_rest(&mut out, block.nodes.clone(), fields, block.span);
         Ok(Self {
             entries: out.into_iter(),
             value: None,
@@ -1091,11 +1071,10 @@ impl<'a> Fields<'a> {
                     format!("`{name}` is given both as a property and as a child node"),
                 )
                 .with_label("given again here")
-                .at(first.src, first.name_span()));
+                .at(first.name_span()));
             }
             let key = Key {
                 name: Cow::Borrowed(name),
-                src: first.src,
                 span: first.name_span(),
                 prop: false,
             };
@@ -1109,7 +1088,6 @@ impl<'a> Fields<'a> {
         out: &mut Vec<(Key<'a>, Val<'a>)>,
         children: Vec<NodeRef<'a>>,
         fields: &'static [&'static str],
-        src: &'a Arc<Source>,
         span: SourceSpan,
     ) {
         if !fields.contains(&"$children") {
@@ -1121,11 +1099,10 @@ impl<'a> Fields<'a> {
             .collect();
         let key = Key {
             name: Cow::Borrowed("$children"),
-            src,
             span,
             prop: false,
         };
-        out.push((key, Val::Block(BlockDe::new(rest, src, span))));
+        out.push((key, Val::Block(BlockDe::new(rest, span))));
     }
 }
 
@@ -1138,7 +1115,7 @@ impl<'a> MapAccess<'a> for Fields<'a> {
         };
         self.value = Some(value);
         let prop = key.prop;
-        let de = StrDe::new_cow(key.name, key.src, key.span);
+        let de = StrDe::new_cow(key.name, key.span);
         seed.deserialize(de)
             .map(Some)
             .map_err(|e| if prop { e.for_property() } else { e })
@@ -1187,7 +1164,7 @@ impl<'a> MapAccess<'a> for KeyedMap<'a> {
                 )));
         };
         self.value = Some(NodeDe { skip_args: 1, ..de });
-        seed.deserialize(ValueDe::new(key, n.src)).map(Some)
+        seed.deserialize(ValueDe::new(key)).map(Some)
     }
 
     fn next_value_seed<V: DeserializeSeed<'a>>(&mut self, seed: V) -> Result<V::Value> {
@@ -1296,12 +1273,7 @@ impl<'a> SeqAccess<'a> for NodeSeq<'a> {
             mode: &mut mode,
         })?;
         if mode == Mode::Args {
-            let src = n.src;
-            let rest: Vec<ValueDe<'a>> = NodeDe::new(n)
-                .args()
-                .skip(1)
-                .map(|e| ValueDe::new(e, src))
-                .collect();
+            let rest: Vec<ValueDe<'a>> = NodeDe::new(n).args().skip(1).map(ValueDe::new).collect();
             self.args = rest.into_iter();
         }
         Ok(Some(value))
@@ -1320,10 +1292,7 @@ impl<'a> ElemDe<'a, '_> {
     fn by_args(&mut self) -> Option<ValueDe<'a>> {
         if self.de.args_only() && self.de.ty().is_none() {
             *self.mode = Mode::Args;
-            self.de
-                .args()
-                .next()
-                .map(|e| ValueDe::new(e, self.de.n.src))
+            self.de.args().next().map(ValueDe::new)
         } else {
             *self.mode = Mode::Whole;
             None
@@ -1435,24 +1404,23 @@ impl<'a> Deserializer<'a> for ElemDe<'a, '_> {
 /// A string with a location: keys, node names, type annotations.
 pub(crate) struct StrDe<'a> {
     s: Cow<'a, str>,
-    src: &'a Arc<Source>,
     span: SourceSpan,
 }
 
 impl<'a> StrDe<'a> {
-    fn new(s: &'a str, src: &'a Arc<Source>, span: SourceSpan) -> Self {
-        Self::new_cow(Cow::Borrowed(s), src, span)
+    fn new(s: &'a str, span: SourceSpan) -> Self {
+        Self::new_cow(Cow::Borrowed(s), span)
     }
 
-    fn new_cow(s: Cow<'a, str>, src: &'a Arc<Source>, span: SourceSpan) -> Self {
-        Self { s, src, span }
+    fn new_cow(s: Cow<'a, str>, span: SourceSpan) -> Self {
+        Self { s, span }
     }
 
     fn parse<T: core::str::FromStr>(&self, exp: &dyn de::Expected) -> Result<T> {
         self.s
             .parse()
             .map_err(|_| Error::invalid_value(Unexpected::Str(&self.s), exp))
-            .map_err(|e: Error| e.at(self.src, self.span))
+            .map_err(|e: Error| e.at(self.span))
     }
 }
 
@@ -1460,7 +1428,7 @@ macro_rules! str_parse {
     ($($m:ident $t:ty => $visit:ident,)*) => {$(
         fn $m<V: Visitor<'a>>(self, visitor: V) -> Result<V::Value> {
             let v: $t = self.parse(&visitor)?;
-            visitor.$visit(v).map_err(|e: Error| e.at(self.src, self.span))
+            visitor.$visit(v).map_err(|e: Error| e.at(self.span))
         }
     )*};
 }
@@ -1473,7 +1441,7 @@ impl<'a> Deserializer<'a> for StrDe<'a> {
             Cow::Borrowed(s) => visitor.visit_borrowed_str(s),
             Cow::Owned(s) => visitor.visit_string(s),
         };
-        r.map_err(|e: Error| e.at(self.src, self.span))
+        r.map_err(|e: Error| e.at(self.span))
     }
 
     // Map keys from node names may be numbers or booleans: `ports { 80 "http" }`.
@@ -1511,18 +1479,14 @@ impl<'a> Deserializer<'a> for StrDe<'a> {
         _variants: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value> {
-        let (src, span) = (self.src, self.span);
-        let content = Nothing { src, span };
+        let span = self.span;
+        let content = Nothing { span };
         visitor
             .visit_enum(Enum {
-                tag: Tag {
-                    name: self.s,
-                    src,
-                    span,
-                },
+                tag: Tag { name: self.s, span },
                 content,
             })
-            .map_err(|e: Error| e.at(src, span))
+            .map_err(|e: Error| e.at(span))
     }
 
     serde::forward_to_deserialize_any! {
@@ -1533,18 +1497,17 @@ impl<'a> Deserializer<'a> for StrDe<'a> {
 }
 
 /// The content of a unit variant given as a bare string (`mode "fast"`).
-struct Nothing<'a> {
-    src: &'a Arc<Source>,
+struct Nothing {
     span: SourceSpan,
 }
 
-impl<'a> Deserializer<'a> for Nothing<'a> {
+impl<'a> Deserializer<'a> for Nothing {
     type Error = Error;
 
     fn deserialize_any<V: Visitor<'a>>(self, visitor: V) -> Result<V::Value> {
         visitor.visit_unit().map_err(|e: Error| {
             e.with_help("non-unit variants are written `(Variant)value` or `(Variant)node { … }`")
-                .at(self.src, self.span)
+                .at(self.span)
         })
     }
 
@@ -1562,15 +1525,13 @@ impl<'a> Deserializer<'a> for Nothing<'a> {
 /// A variant name and where it was written.
 struct Tag<'a> {
     name: Cow<'a, str>,
-    src: &'a Arc<Source>,
     span: SourceSpan,
 }
 
 impl<'a> Tag<'a> {
-    fn new(name: &'a str, src: &'a Arc<Source>, span: SourceSpan) -> Self {
+    fn new(name: &'a str, span: SourceSpan) -> Self {
         Self {
             name: Cow::Borrowed(name),
-            src,
             span,
         }
     }
@@ -1586,13 +1547,13 @@ impl<'a, D: VariantAccess<'a, Error = Error>> EnumAccess<'a> for Enum<'a, D> {
     type Variant = D;
 
     fn variant_seed<S: DeserializeSeed<'a>>(self, seed: S) -> Result<(S::Value, D)> {
-        let Tag { name, src, span } = self.tag;
+        let Tag { name, span } = self.tag;
         let label = format!("`{name}` is not a variant");
         let v = seed
             .deserialize(name.into_deserializer())
             .map_err(|e: Error| {
                 let e = if e.has_span() { e } else { e.with_label(label) };
-                e.at(src, span)
+                e.at(span)
             })?;
         Ok((v, self.content))
     }
@@ -1670,7 +1631,7 @@ impl<'a> VariantAccess<'a> for ValueDe<'a> {
     }
 }
 
-impl<'a> VariantAccess<'a> for Nothing<'a> {
+impl<'a> VariantAccess<'a> for Nothing {
     type Error = Error;
 
     fn unit_variant(self) -> Result<()> {
@@ -1700,16 +1661,14 @@ impl<'a> VariantAccess<'a> for Nothing<'a> {
 /// `$type` (the annotation) then `$value` (the value without it).
 struct AnnotatedAccess<'a, D> {
     ty: Option<(&'a str, Option<SourceSpan>)>,
-    src: &'a Arc<Source>,
     value: Option<D>,
     step: u8,
 }
 
 impl<'a, D> AnnotatedAccess<'a, D> {
-    fn new(ty: Option<(&'a str, Option<SourceSpan>)>, src: &'a Arc<Source>, value: D) -> Self {
+    fn new(ty: Option<(&'a str, Option<SourceSpan>)>, value: D) -> Self {
         Self {
             ty,
-            src,
             value: Some(value),
             step: 0,
         }
@@ -1734,7 +1693,6 @@ impl<'a, D: Deserializer<'a, Error = Error>> MapAccess<'a> for AnnotatedAccess<'
             return match self.ty {
                 Some((ty, span)) => seed.deserialize(OptStr(Some(StrDe::new(
                     ty,
-                    self.src,
                     span.unwrap_or_else(|| (0, 0).into()),
                 )))),
                 None => seed.deserialize(OptStr(None)),

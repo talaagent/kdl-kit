@@ -20,3 +20,6 @@ miette = ["dep:miette", "kdl-span/miette"]
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+kdl-load.workspace = true

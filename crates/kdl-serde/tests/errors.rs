@@ -1,5 +1,6 @@
 //! Snapshots of rendered error diagnostics.
 
+#![cfg(feature = "miette")]
 #![allow(clippy::unwrap_used, dead_code)]
 
 use std::collections::BTreeMap;
@@ -17,6 +18,7 @@ fn render_width(e: &kdl_serde::Error, width: usize) -> String {
     let mut out = String::new();
     GraphicalReportHandler::new_themed(GraphicalTheme::unicode_nocolor())
         .with_width(width)
+        .with_links(false)
         .render_report(&mut out, e)
         .unwrap();
     out
@@ -175,10 +177,9 @@ fn parse_error() {
 #[test]
 fn display_includes_location() {
     let e = fail::<Server>("host \"h\"\nport \"x\"\n");
-    assert_eq!(
-        e.to_string(),
-        "invalid type: string \"x\", expected u16 at config.kdl:2:6"
-    );
+    assert_eq!(e.to_string(), "invalid type: string \"x\", expected u16");
+    assert_eq!(e.location().as_deref(), Some("config.kdl:2:6"));
+    assert_eq!(e.code(), "kdl_serde::invalid_type");
 }
 
 #[test]

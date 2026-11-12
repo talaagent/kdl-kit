@@ -11,7 +11,7 @@ fn read<T: serde::de::DeserializeOwned>(name: &str) -> T {
     let path = format!("{}/tests/fixtures/{name}", env!("CARGO_MANIFEST_DIR"));
     match kdl_serde::from_file(&path) {
         Ok(v) => v,
-        Err(e) => panic!("{:?}", miette::Report::new(e)),
+        Err(e) => panic!("{:?}", e),
     }
 }
 

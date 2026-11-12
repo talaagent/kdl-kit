@@ -1,10 +1,18 @@
 //! The error type shared by the deserializer and the serializer.
+//!
+//! Errors carry a stable [`code`](Error::code), a message, an optional help
+//! text and labeled [`Span`]s, without depending on any renderer. With the
+//! `miette` feature, [`Error`] is also a `miette::Diagnostic`.
+//!
+//! Deserializers record raw document offsets; the public entry points
+//! resolve them against the [`SourceMap`] once an error escapes, so line and
+//! column are only ever computed for errors that are reported.
 
 use alloc::sync::Arc;
 use core::fmt;
-use std::path::PathBuf;
 
-use miette::{Diagnostic, LabeledSpan, MietteError, SourceCode, SourceSpan, SpanContents};
+use kdl_span::{Label, Severity, SourceFile, SourceMap, Span};
+use miette::SourceSpan;
 
 /// A result with this crate's [`Error`].
 pub type Result<T, E = Error> = core::result::Result<T, E>;
@@ -13,9 +21,9 @@ pub type Result<T, E = Error> = core::result::Result<T, E>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum ErrorKind {
-    /// The input is not valid KDL v2.
+    /// The input is not valid KDL v2 (code `kdl_load::parse`).
     Parse,
-    /// Reading a file or directory failed.
+    /// Reading a file or directory failed (code `kdl_load::io`).
     Io,
     /// A struct field has no node, argument or property.
     MissingField,
@@ -25,6 +33,11 @@ pub enum ErrorKind {
     DuplicateField,
     /// A single-valued field was given by more than one node.
     DuplicateNode,
+    /// Two named blocks share a name (code `kdl_nodes::duplicate_name`).
+    DuplicateName,
+    /// A node does not have the single name argument it needs (code
+    /// `kdl_nodes::expected_identifier`).
+    ExpectedIdentifier,
     /// An enum variant name is not one of the enum's variants.
     UnknownVariant,
     /// A value has the wrong type (a string where a number was expected, …).
@@ -39,53 +52,47 @@ pub enum ErrorKind {
     Custom,
 }
 
-/// A source document: its text and, when it came from a file, its path.
-#[derive(Debug)]
-pub(crate) struct Source {
-    pub(crate) name: Option<String>,
-    pub(crate) text: Arc<String>,
-}
-
-impl Source {
-    pub(crate) fn new(name: Option<String>, text: impl Into<String>) -> Arc<Self> {
-        Arc::new(Self {
-            name,
-            text: Arc::new(text.into()),
-        })
+impl ErrorKind {
+    /// The stable error code for this kind.
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::Parse => "kdl_load::parse",
+            Self::Io => "kdl_load::io",
+            Self::MissingField => "kdl_serde::missing_field",
+            Self::UnknownField => "kdl_serde::unknown_field",
+            Self::DuplicateField => "kdl_serde::duplicate_field",
+            Self::DuplicateNode => "kdl_serde::duplicate_node",
+            Self::DuplicateName => "kdl_nodes::duplicate_name",
+            Self::ExpectedIdentifier => "kdl_nodes::expected_identifier",
+            Self::UnknownVariant => "kdl_serde::unknown_variant",
+            Self::InvalidType => "kdl_serde::invalid_type",
+            Self::InvalidValue => "kdl_serde::invalid_value",
+            Self::InvalidLength => "kdl_serde::invalid_length",
+            Self::Unsupported => "kdl_serde::unsupported",
+            Self::Custom => "kdl_serde::custom",
+        }
     }
-}
 
-/// [`Source`] as miette source code, named after its file when it has one.
-#[derive(Debug, Clone)]
-struct SourceRef(Arc<Source>);
-
-impl SourceCode for SourceRef {
-    fn read_span<'a>(
-        &'a self,
-        span: &SourceSpan,
-        before: usize,
-        after: usize,
-    ) -> Result<Box<dyn SpanContents<'a> + 'a>, MietteError> {
-        let contents = self.0.text.read_span(span, before, after)?;
-        Ok(match &self.0.name {
-            Some(name) => Box::new(miette::MietteSpanContents::new_named(
-                name.clone(),
-                contents.data(),
-                *contents.span(),
-                contents.line(),
-                contents.column(),
-                contents.line_count(),
-            )),
-            None => contents,
-        })
+    fn default_label(self) -> &'static str {
+        match self {
+            Self::MissingField => "in this node",
+            Self::UnknownField => "unknown field",
+            Self::UnknownVariant => "unknown variant",
+            Self::DuplicateNode | Self::DuplicateName => "duplicate",
+            Self::DuplicateField => "given again here",
+            Self::InvalidType => "wrong type",
+            Self::InvalidValue => "invalid value",
+            Self::InvalidLength => "wrong length",
+            _ => "here",
+        }
     }
 }
 
 /// A (de)serialization error.
 ///
-/// Deserialization errors carry the source text, the file name (for
-/// [`from_dir`](crate::from_dir) and [`from_file`](crate::from_file)) and a
-/// labeled span, and render as a [`miette`] diagnostic:
+/// [`Display`](fmt::Display) is the message alone; [`location`](Self::location)
+/// gives `file:line:col`, and with the `miette` feature the error renders as
+/// a diagnostic with a labeled source snippet:
 ///
 /// ```text
 ///   × unknown field `prot`, expected one of `host`, `port`
@@ -97,8 +104,12 @@ impl SourceCode for SourceRef {
 ///    ╰────
 ///   help: did you mean `port`?
 /// ```
+#[derive(thiserror::Error)]
+#[error("{}", self.inner.message)]
 pub struct Error {
     inner: Box<Inner>,
+    #[source]
+    cause: Option<std::io::Error>,
 }
 
 struct Inner {
@@ -106,12 +117,11 @@ struct Inner {
     message: String,
     label: Option<String>,
     help: Option<String>,
-    span: Option<SourceSpan>,
-    secondary: Vec<(SourceSpan, String)>,
-    source: Option<SourceRef>,
-    path: Option<PathBuf>,
-    cause: Option<Box<dyn core::error::Error + Send + Sync>>,
-    related: Vec<Error>,
+    /// Unresolved document offsets, until [`Error::resolve`].
+    raw: Option<SourceSpan>,
+    raw_secondary: Vec<(SourceSpan, String)>,
+    labels: Vec<Label>,
+    file: Option<Arc<SourceFile>>,
 }
 
 impl Error {
@@ -122,13 +132,12 @@ impl Error {
                 message: message.into(),
                 label: None,
                 help: None,
-                span: None,
-                secondary: Vec::new(),
-                source: None,
-                path: None,
-                cause: None,
-                related: Vec::new(),
+                raw: None,
+                raw_secondary: Vec::new(),
+                labels: Vec::new(),
+                file: None,
             }),
+            cause: None,
         }
     }
 
@@ -137,29 +146,62 @@ impl Error {
         self.inner.kind
     }
 
+    /// The stable error code, e.g. `kdl_serde::missing_field`. See
+    /// `docs/errors.md` in the repository for every code.
+    pub fn code(&self) -> &'static str {
+        self.inner.kind.code()
+    }
+
+    /// How serious the error is (always [`Severity::Error`]).
+    pub fn severity(&self) -> Severity {
+        Severity::Error
+    }
+
     /// The error message, without location.
     pub fn message(&self) -> &str {
         &self.inner.message
     }
 
-    /// The byte span in the source the error points at, if any.
-    pub fn span(&self) -> Option<SourceSpan> {
-        self.inner.span
+    /// A suggested fix, if there is one.
+    pub fn help(&self) -> Option<&str> {
+        self.inner.help.as_deref()
     }
 
-    /// The file the error happened in, if the input came from a file.
+    /// The labeled spans, primary first. Empty when the error has no
+    /// location (serialization errors, I/O errors).
+    pub fn labels(&self) -> &[Label] {
+        &self.inner.labels
+    }
+
+    /// The primary span, if any.
+    pub fn span(&self) -> Option<Span> {
+        self.inner.labels.first().map(|l| l.span)
+    }
+
+    /// The file the labels point into.
+    pub fn source_file(&self) -> Option<&Arc<SourceFile>> {
+        self.inner.file.as_ref()
+    }
+
+    /// The file's name, if the error has a location in a named file.
     pub fn file(&self) -> Option<&str> {
-        self.inner.source.as_ref()?.0.name.as_deref()
+        self.source_file()
+            .map(|f| f.name())
+            .filter(|n| !n.is_empty())
     }
 
-    /// The 1-based line and column of [`span`](Self::span), if any.
+    /// The 1-based line and column of the primary span.
     pub fn line_col(&self) -> Option<(usize, usize)> {
-        let offset = self.inner.span?.offset();
-        let text = self.inner.source.as_ref()?.0.text.as_str();
-        let before = text.get(..offset)?;
-        let line = before.matches('\n').count() + 1;
-        let col = before.rsplit('\n').next().map_or(0, |l| l.chars().count()) + 1;
-        Some((line, col))
+        Some(self.source_file()?.line_col(self.span()?.offset))
+    }
+
+    /// `file:line:col` (or `line L column C` for unnamed input).
+    pub fn location(&self) -> Option<String> {
+        let (line, col) = self.line_col()?;
+        Some(match self.file() {
+            Some(file) => format!("{file}:{line}:{col}"),
+            None => format!("line {line} column {col}"),
+        })
     }
 
     pub(crate) fn with_label(mut self, label: impl Into<String>) -> Self {
@@ -168,7 +210,7 @@ impl Error {
     }
 
     pub(crate) fn with_label_if_unset(mut self, label: &str) -> Self {
-        if self.inner.span.is_none() && self.inner.label.is_none() {
+        if self.inner.raw.is_none() && self.inner.label.is_none() {
             self.inner.label = Some(label.to_owned());
         }
         self
@@ -180,7 +222,7 @@ impl Error {
     }
 
     pub(crate) fn with_secondary(mut self, span: SourceSpan, label: impl Into<String>) -> Self {
-        self.inner.secondary.push((span, label.into()));
+        self.inner.raw_secondary.push((span, label.into()));
         self
     }
 
@@ -196,194 +238,138 @@ impl Error {
     }
 
     pub(crate) fn has_span(&self) -> bool {
-        self.inner.span.is_some()
+        self.inner.raw.is_some()
     }
 
-    /// Points the error at `span` in `source`, unless a deeper deserializer
+    /// Points the error at a document span, unless a deeper deserializer
     /// already did.
-    pub(crate) fn at(mut self, source: &Arc<Source>, span: SourceSpan) -> Self {
-        if self.inner.span.is_none() {
-            self.inner.span = Some(span);
-            self.inner.source = Some(SourceRef(Arc::clone(source)));
+    pub(crate) fn at(mut self, span: SourceSpan) -> Self {
+        if self.inner.raw.is_none() {
+            self.inner.raw = Some(span);
         }
         self
     }
 
-    pub(crate) fn io(path: PathBuf, err: std::io::Error) -> Self {
-        let mut e = Self::new(ErrorKind::Io, format!("{}: {err}", path.display()));
-        e.inner.path = Some(path);
-        e.inner.cause = Some(Box::new(err));
-        e
+    /// Turns raw document offsets into file spans and labels.
+    pub(crate) fn resolve(mut self, sources: &SourceMap) -> Self {
+        let inner = &mut *self.inner;
+        let Some(raw) = inner.raw.take() else {
+            return self;
+        };
+        let Some(primary) = sources.span(raw.offset(), raw.len()) else {
+            return self;
+        };
+        let label = inner
+            .label
+            .clone()
+            .unwrap_or_else(|| inner.kind.default_label().to_owned());
+        inner.labels.push(Label::primary(primary, label));
+        for (span, label) in core::mem::take(&mut inner.raw_secondary) {
+            let Some(span) = sources.span(span.offset(), span.len()) else {
+                continue;
+            };
+            if span.file == primary.file {
+                inner.labels.push(Label::secondary(span, label));
+            } else {
+                let at = sources.describe(span);
+                let what = label.trim_end_matches(" here");
+                inner.help = Some(match inner.help.take() {
+                    Some(help) => format!("{what} at {at}; {help}"),
+                    None => format!("{what} at {at}"),
+                });
+            }
+        }
+        inner.file = Some(Arc::clone(sources.file(primary.file)));
+        self
     }
 
-    pub(crate) fn parse(source: &Arc<Source>, err: &kdl::KdlError) -> Self {
-        let mut diags = err.diagnostics.iter().map(|d| {
-            let mut e = Self::new(
-                ErrorKind::Parse,
-                d.message.clone().unwrap_or_else(|| "invalid KDL".into()),
-            )
-            .with_label(d.label.clone().unwrap_or_else(|| "here".into()))
-            .at(source, d.span);
-            e.inner.help.clone_from(&d.help);
-            e
-        });
-        let mut first = diags.next().unwrap_or_else(|| {
-            Self::new(ErrorKind::Parse, "invalid KDL").at(source, (0, 0).into())
-        });
-        first.inner.related = diags.collect();
-        first
+    pub(crate) fn load(e: kdl_load::Error) -> Self {
+        match e {
+            kdl_load::Error::Parse(p) => {
+                let first = &p.problems()[0];
+                let mut err = Self::new(ErrorKind::Parse, first.message.clone());
+                err.inner.labels.push(first.label.clone());
+                err.inner.help.clone_from(&first.help);
+                err.inner.file = Some(Arc::clone(p.file()));
+                err
+            }
+            kdl_load::Error::Io { path, source } => {
+                let mut err = Self::new(ErrorKind::Io, format!("cannot read {}", path.display()));
+                err.cause = Some(source);
+                err
+            }
+            other => Self::new(ErrorKind::Io, other.to_string()),
+        }
+    }
+
+    pub(crate) fn nodes(e: kdl_nodes::Error, sources: &SourceMap) -> Self {
+        let kind = match e.code() {
+            "kdl_nodes::duplicate_name" => ErrorKind::DuplicateName,
+            "kdl_nodes::expected_identifier" => ErrorKind::ExpectedIdentifier,
+            _ => ErrorKind::Custom,
+        };
+        let mut err = Self::new(kind, e.to_string());
+        err.inner.labels = e.labels().to_vec();
+        err.inner.help = e.help().map(str::to_owned);
+        err.inner.file = e
+            .labels()
+            .first()
+            .map(|l| Arc::clone(sources.file(l.span.file)));
+        err
     }
 
     pub(crate) fn unsupported(message: impl Into<String>) -> Self {
         Self::new(ErrorKind::Unsupported, message)
-    }
-
-    fn primary_label(&self) -> String {
-        if let Some(l) = &self.inner.label {
-            return l.clone();
-        }
-        match self.inner.kind {
-            ErrorKind::MissingField => "in this node",
-            ErrorKind::UnknownField => "unknown field",
-            ErrorKind::UnknownVariant => "unknown variant",
-            ErrorKind::DuplicateNode => "duplicate",
-            ErrorKind::DuplicateField => "given again here",
-            ErrorKind::InvalidType => "wrong type",
-            ErrorKind::InvalidValue => "invalid value",
-            ErrorKind::InvalidLength => "wrong length",
-            _ => "here",
-        }
-        .to_owned()
     }
 }
 
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("Error");
-        d.field("kind", &self.inner.kind)
+        d.field("code", &self.code())
             .field("message", &self.inner.message);
-        if let Some(file) = self.file() {
-            d.field("file", &file);
-        }
-        if let Some((line, col)) = self.line_col() {
-            d.field("line", &line).field("col", &col);
+        if let Some(loc) = self.location() {
+            d.field("at", &loc);
         }
         d.finish()
     }
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.inner.message)?;
-        match (self.file(), self.line_col()) {
-            (Some(file), Some((line, col))) => write!(f, " at {file}:{line}:{col}"),
-            (None, Some((line, col))) => write!(f, " at line {line} column {col}"),
-            (Some(file), None) => write!(f, " in {file}"),
-            (None, None) => Ok(()),
+#[cfg(feature = "miette")]
+mod diagnostic {
+    use super::Error;
+    use core::fmt::Display;
+    use miette::{Diagnostic, LabeledSpan, SourceCode};
+
+    const DOCS: &str = "https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md";
+
+    impl Diagnostic for Error {
+        fn code<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
+            Some(Box::new(Error::code(self)))
         }
-    }
-}
 
-impl core::error::Error for Error {
-    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
-        self.inner
-            .cause
-            .as_deref()
-            .map(|e| e as &(dyn core::error::Error + 'static))
-    }
-}
-
-impl Diagnostic for Error {
-    fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
-        let code = match self.inner.kind {
-            ErrorKind::Parse => "kdl_serde::parse",
-            ErrorKind::Io => "kdl_serde::io",
-            ErrorKind::MissingField => "kdl_serde::missing_field",
-            ErrorKind::UnknownField => "kdl_serde::unknown_field",
-            ErrorKind::DuplicateField => "kdl_serde::duplicate_field",
-            ErrorKind::DuplicateNode => "kdl_serde::duplicate_node",
-            ErrorKind::UnknownVariant => "kdl_serde::unknown_variant",
-            ErrorKind::InvalidType => "kdl_serde::invalid_type",
-            ErrorKind::InvalidValue => "kdl_serde::invalid_value",
-            ErrorKind::InvalidLength => "kdl_serde::invalid_length",
-            ErrorKind::Unsupported => "kdl_serde::unsupported",
-            ErrorKind::Custom => "kdl_serde::custom",
-        };
-        Some(Box::new(code))
-    }
-
-    fn help<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
-        self.inner
-            .help
-            .as_ref()
-            .map(|h| Box::new(h) as Box<dyn fmt::Display>)
-    }
-
-    fn source_code(&self) -> Option<&dyn SourceCode> {
-        self.inner.span?;
-        self.inner.source.as_ref().map(|s| s as &dyn SourceCode)
-    }
-
-    fn labels(&self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + '_>> {
-        let span = self.inner.span?;
-        let primary = LabeledSpan::new_primary_with_span(Some(self.primary_label()), span);
-        let rest = self
-            .inner
-            .secondary
-            .iter()
-            .map(|(s, l)| LabeledSpan::new_with_span(Some(l.clone()), *s));
-        Some(Box::new(core::iter::once(primary).chain(rest)))
-    }
-
-    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn Diagnostic> + 'a>> {
-        if self.inner.related.is_empty() {
-            return None;
+        fn url<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
+            let anchor = Error::code(self).replace("::", "-");
+            Some(Box::new(format!("{DOCS}#{anchor}")))
         }
-        Some(Box::new(
-            self.inner.related.iter().map(|e| e as &dyn Diagnostic),
-        ))
-    }
-}
 
-/// Edit distance counting adjacent transpositions as one edit, for "did
-/// you mean" hints.
-fn distance(a: &str, b: &str) -> usize {
-    let a: Vec<char> = a.chars().collect();
-    let b: Vec<char> = b.chars().collect();
-    let mut d = vec![vec![0usize; b.len() + 1]; a.len() + 1];
-    for (i, row) in d.iter_mut().enumerate() {
-        row[0] = i;
-    }
-    for (j, cell) in d[0].iter_mut().enumerate() {
-        *cell = j;
-    }
-    for i in 1..=a.len() {
-        for j in 1..=b.len() {
-            let cost = usize::from(a[i - 1] != b[j - 1]);
-            let mut best = (d[i - 1][j] + 1)
-                .min(d[i][j - 1] + 1)
-                .min(d[i - 1][j - 1] + cost);
-            if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
-                best = best.min(d[i - 2][j - 2] + 1);
+        fn help<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
+            self.help().map(|h| Box::new(h) as Box<dyn Display>)
+        }
+
+        fn source_code(&self) -> Option<&dyn SourceCode> {
+            self.inner.file.as_deref().map(|f| f as &dyn SourceCode)
+        }
+
+        fn labels(&self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + '_>> {
+            if self.inner.labels.is_empty() {
+                return None;
             }
-            d[i][j] = best;
+            Some(Box::new(
+                self.inner.labels.iter().map(kdl_span::Label::to_miette),
+            ))
         }
     }
-    d[a.len()][b.len()]
-}
-
-fn did_you_mean(name: &str, candidates: &[&str]) -> Option<String> {
-    candidates
-        .iter()
-        .map(|c| (distance(name, c), *c))
-        .filter(|(d, c)| *d <= (c.len().max(name.len()) / 3).max(1))
-        .min()
-        .map(|(_, c)| format!("did you mean `{}`?", display_field(c)))
-}
-
-/// How a field name reads in KDL: `$0` is "argument 0", `@key` "property key".
-fn display_field(name: &str) -> String {
-    name.strip_prefix('@').unwrap_or(name).to_owned()
 }
 
 fn one_of(names: &[&str]) -> String {
@@ -395,6 +381,10 @@ fn one_of(names: &[&str]) -> String {
             format!("one of {}", list.join(", "))
         }
     }
+}
+
+fn display_field(name: &str) -> String {
+    name.strip_prefix('@').unwrap_or(name).to_owned()
 }
 
 impl serde::de::Error for Error {
@@ -431,8 +421,8 @@ impl serde::de::Error for Error {
             ErrorKind::UnknownVariant,
             format!("unknown variant `{variant}`, expected {}", one_of(expected)),
         );
-        if let Some(help) = did_you_mean(variant, expected) {
-            e = e.with_help(help);
+        if let Some(c) = kdl_span::did_you_mean(variant, expected.iter().copied()) {
+            e = e.with_help(format!("did you mean `{c}`?"));
         }
         e
     }
@@ -466,8 +456,8 @@ impl serde::de::Error for Error {
             ErrorKind::UnknownField,
             format!("unknown field `{field}`, expected {}", one_of(&names)),
         );
-        if let Some(help) = did_you_mean(field, &names) {
-            e = e.with_help(help);
+        if let Some(c) = kdl_span::did_you_mean(field, names.iter().copied()) {
+            e = e.with_help(format!("did you mean `{c}`?"));
         }
         e
     }
@@ -495,19 +485,5 @@ impl serde::de::Error for Error {
 impl serde::ser::Error for Error {
     fn custom<T: fmt::Display>(msg: T) -> Self {
         Self::new(ErrorKind::Custom, msg.to_string())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn suggests_close_names() {
-        assert_eq!(
-            did_you_mean("prot", &["host", "port"]).as_deref(),
-            Some("did you mean `port`?")
-        );
-        assert_eq!(did_you_mean("zzzzzz", &["host", "port"]), None);
     }
 }
