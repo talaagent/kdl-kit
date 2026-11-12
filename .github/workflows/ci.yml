@@ -14,13 +14,28 @@ jobs:
     # Off while the repo is private (no Actions minutes); on once public.
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v31
       - name: fmt
         run: nix develop -c cargo fmt --check
       - name: clippy
-        run: nix develop -c cargo clippy --all-targets -- -D warnings
-      - name: test
-        run: nix develop -c cargo test
+        run: |
+          nix develop -c cargo clippy --workspace --all-targets -- -D warnings
+          nix develop -c cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: test (each crate, without and with miette)
+        run: |
+          for p in kdl-span kdl-load kdl-nodes kdl-pretty kdl-serde; do
+            nix develop -c cargo test -p "$p" --no-default-features
+            nix develop -c cargo test -p "$p" --features miette 2>/dev/null \
+              || nix develop -c cargo test -p "$p"
+          done
+          nix develop -c cargo test --workspace --all-features
+      - name: only kdl-serde depends on serde
+        run: |
+          for p in kdl-span kdl-load kdl-nodes kdl-pretty; do
+            if nix develop -c cargo tree -p "$p" -e normal --all-features | grep -qE '(^|[ ─])serde(_[a-z]+)? v'; then
+              echo "$p depends on serde"; exit 1
+            fi
+          done

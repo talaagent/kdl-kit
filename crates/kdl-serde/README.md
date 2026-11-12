@@ -36,15 +36,19 @@ assert_eq!(kdl_serde::to_string_pretty(&config)?, "name \"api\"\nport 8080\ntags
 | --- | --- |
 | `from_str`, `from_str_named` | Text (optionally with a file name for errors) to `T` |
 | `from_reader`, `from_file` | A reader or a file to `T` |
-| `from_doc` | A parsed `kdl::KdlDocument` to `T` |
-| `from_dir(path, recursive)` | Every `*.kdl` file in a directory, sorted by path, read as one document |
+| `from_dir(path, recursive)` | Every `*.kdl` file in a directory, sorted by path, read as one document (via `kdl-load`) |
+| `from_loaded`, `from_doc` | A `kdl_load::Loaded` or a `kdl::KdlDocument` to `T`; `T` may borrow (`&'de str`, `Cow<'de, str>`) |
+| `named_blocks::<T>(loaded, kind)`, `named_map::<T>` | Every `<kind> <name> { body }` node as `(name, T)` / `BTreeMap<String, T>`; names must be unique |
 | `to_string_pretty`, `to_string_with` | `T` to indented text (default or custom `Options`) |
 | `to_string` | `T` to compact text, one top-level node per line |
 | `to_doc`, `to_doc_with` | `T` to a `kdl::KdlDocument` |
-| `format`, `format_compact` | Print any `KdlDocument` with the deterministic printer |
 
 Helper types: `Annotated<T>` (a value and its `(type)` annotation), `RawNode`
 and `RawDocument` (pass a node or a children block through untouched).
+Printing any `KdlDocument` is `kdl_pretty::format`.
+
+Features: `parallel` (default) reads directories on rayon's pool; `miette`
+makes `Error` a `miette::Diagnostic`.
 
 ## Mapping
 
@@ -222,10 +226,17 @@ into one `Vec`. Errors name the file they come from.
 
 ### Errors
 
-Every deserialization error carries the source and a labeled span:
+Every deserialization error has a stable code (`Error::code()`, listed in
+[docs/errors.md](../../docs/errors.md)), a message, optional help and
+labeled spans (`Error::labels()`, as `kdl_span::Span { file, offset, len }`
+with `Error::source_file()` for the text and name), so callers can render
+it however they like; `Error::location()` gives `file:line:col`. With the
+`miette` feature it is a `miette::Diagnostic`:
 
 ```text
-  × unknown property `rol`, expected `role` at config.kdl:3:27
+kdl_serde::unknown_field (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_serde-unknown_field)
+
+  × unknown property `rol`, expected `role`
    ╭─[config.kdl:3:27]
  2 │ server host="h" port=1
  3 │ member "ada" role="admin" rol="x"
@@ -235,14 +246,14 @@ Every deserialization error carries the source and a labeled span:
   help: did you mean `role`?
 ```
 
-`Error::kind()` tells missing fields, unknown fields (under
-`deny_unknown_fields`), duplicate nodes for single-valued fields, wrong types,
-out-of-range values and parse errors apart; `Error::file()` and
-`Error::line_col()` give the location.
+Line and column are computed only for errors that are reported. `kdl`
+itself depends on `miette` (its spans are `miette::SourceSpan`), so the
+crate is always in the dependency tree, but none of our public APIs use
+its types unless the `miette` feature is on.
 
 ### Printing
 
-`to_string_pretty` uses its own printer rather than kdl-rs's autoformat: it
+`to_string_pretty` prints with `kdl-pretty` rather than kdl-rs's autoformat: it
 ignores source formatting, indents two spaces (`Options::indent`), keeps
 struct field order, sorts map entries (`Options::sort_maps`), writes
 identifiers bare when KDL allows it, and writes strings containing newlines
@@ -263,6 +274,9 @@ the same text.
   `-170141183460469231731687303715884105728` (`i128::MIN`).
 - Comments and formatting are not preserved; `RawNode` and `RawDocument`
   keep content, not layout.
+- Parsing is kdl-rs's: about 3–4 MB/s, which dominates `from_str` (see
+  the benchmarks in `benches/kdl.rs`). Deserializing a parsed document is
+  ~20x faster than parsing it.
 - `Option<Option<T>>` cannot tell `Some(None)` from `None`.
 
 ## Prior art
