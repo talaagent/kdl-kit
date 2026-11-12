@@ -1,4 +1,4 @@
-//! A deterministic KDL v2 printer.
+//! A deterministic KDL v2 formatter.
 //!
 //! kdl-rs's own `Display` and autoformat keep (or guess) source formatting
 //! and collapse multiline strings into `\n` escapes (kdl-org/kdl-rs#77). This
@@ -11,14 +11,47 @@ use core::fmt::Write as _;
 
 use kdl::{KdlDocument, KdlEntry, KdlIdentifier, KdlNode, KdlValue};
 
-use crate::Options;
+/// Formatter settings.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct Options {
+    /// Spaces per indentation level.
+    pub indent: usize,
+    /// Write strings that contain newlines as `"""` multiline strings.
+    pub multiline_strings: bool,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            indent: 2,
+            multiline_strings: true,
+        }
+    }
+}
+
+impl Options {
+    /// Sets [`indent`](Self::indent).
+    #[must_use]
+    pub fn indent(mut self, indent: usize) -> Self {
+        self.indent = indent;
+        self
+    }
+
+    /// Sets [`multiline_strings`](Self::multiline_strings).
+    #[must_use]
+    pub fn multiline_strings(mut self, multiline: bool) -> Self {
+        self.multiline_strings = multiline;
+        self
+    }
+}
 
 /// Formats `doc` as KDL v2 text, one node per line with nested children
 /// indented.
 ///
 /// ```
 /// let doc: kdl::KdlDocument = "a   1 ;b { c \"x\" }".parse().unwrap();
-/// assert_eq!(kdl_serde::format(&doc, &Default::default()), "a 1\nb {\n  c \"x\"\n}\n");
+/// assert_eq!(kdl_pretty::format(&doc, &Default::default()), "a 1\nb {\n  c \"x\"\n}\n");
 /// ```
 pub fn format(doc: &KdlDocument, opts: &Options) -> String {
     let mut p = Printer {
@@ -254,9 +287,10 @@ fn ws_char(out: &mut String, c: char, escape: bool) {
     }
 }
 
-/// Whether `s` can be written as a bare identifier. Deliberately
+/// Whether `s` can be written as a bare identifier.
+/// Deliberately
 /// conservative: anything unusual gets quoted.
-pub(crate) fn is_bare_identifier(s: &str) -> bool {
+pub fn is_bare_identifier(s: &str) -> bool {
     let mut chars = s.chars();
     let Some(first) = chars.next() else {
         return false;

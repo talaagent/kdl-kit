@@ -1,0 +1,22 @@
+[package]
+name = "kdl-nodes"
+description = "Untyped helpers for named KDL nodes and blocks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+kdl.workspace = true
+kdl-span.workspace = true
+thiserror.workspace = true
+miette = { workspace = true, optional = true }
+
+[features]
+miette = ["dep:miette", "kdl-span/miette"]
+
+[lints]
+workspace = true

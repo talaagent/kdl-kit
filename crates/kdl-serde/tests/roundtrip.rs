@@ -211,7 +211,7 @@ proptest! {
             node.push(kdl::KdlEntry::new(s.as_str()));
             node.push(kdl::KdlEntry::new_prop(s.as_str(), s.as_str()));
             doc.nodes_mut().push(node);
-            let text = kdl_serde::format(&doc, &Options::default());
+            let text = kdl_pretty::format(&doc, &kdl_pretty::Options::default());
             let parsed: kdl::KdlDocument = text.parse().map_err(|e: kdl::KdlError| {
                 TestCaseError::fail(format!("{:?}\n{text}", miette::Report::new(e)))
             })?;

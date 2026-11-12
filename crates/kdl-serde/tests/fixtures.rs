@@ -242,7 +242,7 @@ fn schema() {
 #[test]
 fn schema_as_raw_document_keeps_everything() {
     let raw: kdl_serde::RawDocument = read("schema.kdl");
-    let text = kdl_serde::format(&raw.0, &kdl_serde::Options::default());
+    let text = kdl_pretty::format(&raw.0, &kdl_pretty::Options::default());
     let again: Vec<Item> = kdl_serde::from_str(&text).unwrap();
     assert_eq!(again, read::<Vec<Item>>("schema.kdl"));
 }

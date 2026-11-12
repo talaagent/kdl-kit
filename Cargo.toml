@@ -1,36 +1,38 @@
-[package]
-name = "kdl-serde"
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"
-description = "Serde Serializer and Deserializer for KDL v2 documents, with miette diagnostics"
 repository = "https://github.com/talaagent/kdl-serde"
 authors = ["Ian Macalinao <github@igm.pub>"]
-keywords = ["kdl", "serde", "config"]
-categories = ["encoding", "config"]
 publish = false
 
-[lib]
-name = "kdl_serde"
-
-[dependencies]
+[workspace.dependencies]
 kdl = { version = "6.7", default-features = false, features = ["span"] }
+# kdl itself depends on miette (its spans are `miette::SourceSpan`); our
+# Diagnostic impls and rendering are behind each crate's `miette` feature.
 miette = { version = "7.6", default-features = false }
 serde = "1"
-
-[dev-dependencies]
+thiserror = "2"
+rayon = "1"
+kdl-span = { path = "crates/kdl-span" }
+kdl-load = { path = "crates/kdl-load", default-features = false }
+kdl-nodes = { path = "crates/kdl-nodes" }
+kdl-pretty = { path = "crates/kdl-pretty" }
+kdl-serde = { path = "crates/kdl-serde" }
 insta = "1"
-miette = { version = "7.6", features = ["fancy-no-backtrace"] }
 proptest = "1"
-serde = { version = "1", features = ["derive"] }
 tempfile = "3"
 
-[lints.rust]
+[workspace.lints.rust]
 unsafe_code = "forbid"
 missing_docs = "warn"
 
-[lints.clippy]
+[workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
 unwrap_used = "deny"
 clone_on_ref_ptr = "deny"

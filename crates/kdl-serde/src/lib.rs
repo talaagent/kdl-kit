@@ -5,7 +5,6 @@ extern crate alloc;
 mod base64;
 mod de;
 mod error;
-mod fmt;
 mod magic;
 mod ser;
 mod types;
@@ -19,7 +18,6 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 pub use crate::error::{Error, ErrorKind, Result};
-pub use crate::fmt::{format, format_compact};
 pub use crate::ser::{MapStyle, Options, SeqStyle};
 pub use crate::types::{Annotated, RawDocument, RawNode};
 
@@ -150,7 +148,7 @@ fn deserialize<T: DeserializeOwned>(docs: &[(&KdlDocument, &Arc<Source>)]) -> Re
 /// children inline (`a { b 1; c 2; }`). See [`to_string_pretty`] for
 /// indented output.
 pub fn to_string<T: ?Sized + Serialize>(value: &T) -> Result<String> {
-    Ok(format_compact(&to_doc(value)?))
+    Ok(kdl_pretty::format_compact(&to_doc(value)?))
 }
 
 /// Serializes `value` to indented KDL text.
@@ -171,7 +169,10 @@ pub fn to_string_pretty<T: ?Sized + Serialize>(value: &T) -> Result<String> {
 
 /// Serializes `value` to indented KDL text with `opts`.
 pub fn to_string_with<T: ?Sized + Serialize>(value: &T, opts: &Options) -> Result<String> {
-    Ok(format(&to_doc_with(value, opts)?, opts))
+    Ok(kdl_pretty::format(
+        &to_doc_with(value, opts)?,
+        &opts.pretty(),
+    ))
 }
 
 /// Serializes `value` to a [`KdlDocument`].

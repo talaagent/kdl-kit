@@ -69,6 +69,13 @@ impl Default for Options {
 }
 
 impl Options {
+    /// The formatter settings these options imply.
+    pub(crate) fn pretty(&self) -> kdl_pretty::Options {
+        kdl_pretty::Options::default()
+            .indent(self.indent)
+            .multiline_strings(self.multiline_strings)
+    }
+
     /// Sets [`seq_style`](Self::seq_style).
     #[must_use]
     pub fn seq_style(mut self, style: SeqStyle) -> Self {
