@@ -147,7 +147,20 @@ static DIR: LazyLock<tempfile::TempDir> = LazyLock::new(|| {
 #[divan::bench]
 fn parse_only_big(b: Bencher) {
     let text = &BIG.1;
+    b.bench(|| kdl_tree::Document::parse(black_box(text)).unwrap());
+}
+
+/// The `kdl` crate's parse of the same text, for comparison.
+#[divan::bench]
+fn parse_only_big_kdl(b: Bencher) {
+    let text = &BIG.1;
     b.bench(|| kdl::KdlDocument::parse_v2(black_box(text)).unwrap());
+}
+
+#[divan::bench]
+fn load_str_big(b: Bencher) {
+    let text = &BIG.1;
+    b.bench(|| kdl_load::load_str("", black_box(text.as_str())).unwrap());
 }
 
 #[divan::bench]
