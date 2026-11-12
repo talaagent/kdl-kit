@@ -1,0 +1,15 @@
+// leading doc comment
+
+/* block */ a 1 /* inline */ 2 /-3 key=4 // trailing a
+b; c
+/-d 1 2
+
+e { // after brace
+  // child comment
+  f 1
+
+  g 2 /-{ x }
+  // end comment
+} // after e
+h /-{ x } { y }
+// final

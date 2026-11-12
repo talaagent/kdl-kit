@@ -1,0 +1,13 @@
+// Server settings.
+server "main" port=8080 {
+  host "localhost" // where to listen
+
+  /* TLS */ tls enabled=#true {
+    cert "/etc/cert.pem"
+  } // end tls
+  /-debug #true
+}
+
+// Users.
+user "alice" admin=#true
+user "bob"

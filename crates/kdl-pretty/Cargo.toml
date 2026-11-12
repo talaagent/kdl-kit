@@ -1,6 +1,7 @@
 [package]
 name = "kdl-pretty"
 description = "A deterministic, comment-preserving KDL v2 formatter"
+readme = "README.md"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,8 +13,8 @@ publish.workspace = true
 [dependencies]
 kdl.workspace = true
 
-[features]
-
-
 [lints]
 workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
