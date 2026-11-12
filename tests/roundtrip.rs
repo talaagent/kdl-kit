@@ -181,12 +181,8 @@ fn styles() -> Vec<Options> {
 fn check(doc: &Doc) -> Result<(), TestCaseError> {
     for opts in styles() {
         let text = kdl_serde::to_string_with(doc, &opts).unwrap();
-        let back: Doc = kdl_serde::from_str(&text).map_err(|e| {
-            TestCaseError::fail(format!(
-                "{:?}\n{text}",
-                miette::Report::new(e)
-            ))
-        })?;
+        let back: Doc = kdl_serde::from_str(&text)
+            .map_err(|e| TestCaseError::fail(format!("{:?}\n{text}", miette::Report::new(e))))?;
         prop_assert_eq!(&back, doc, "{:?}\n{}", opts, text);
         // Formatting is deterministic and stable.
         let again = kdl_serde::to_string_with(&back, &opts).unwrap();
