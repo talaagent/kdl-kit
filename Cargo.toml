@@ -1,0 +1,37 @@
+[package]
+name = "kdl-serde"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0"
+description = "Serde Serializer and Deserializer for KDL v2 documents, with miette diagnostics"
+repository = "https://github.com/talaagent/kdl-serde"
+authors = ["Ian Macalinao <github@igm.pub>"]
+keywords = ["kdl", "serde", "config"]
+categories = ["encoding", "config"]
+publish = false
+
+[lib]
+name = "kdl_serde"
+
+[dependencies]
+kdl = { version = "6.7", default-features = false, features = ["span"] }
+miette = { version = "7.6", default-features = false }
+serde = "1"
+
+[dev-dependencies]
+insta = "1"
+miette = { version = "7.6", features = ["fancy-no-backtrace"] }
+proptest = "1"
+serde = { version = "1", features = ["derive"] }
+tempfile = "3"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+clone_on_ref_ptr = "deny"
+std_instead_of_core = "warn"
