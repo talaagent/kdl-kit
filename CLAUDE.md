@@ -13,7 +13,13 @@ Run everything inside the nix devShell (pinned rustc, see
 nix develop -c cargo fmt
 nix develop -c cargo clippy --workspace --all-targets --all-features -- -D warnings
 nix develop -c cargo test --workspace            # and --all-features (miette)
-nix develop -c cargo bench -p kdl-serde         # divan benchmar## Layout
+nix develop -c cargo bench -p kdl-serde         # divan benchmarks
+```
+
+Every commit must pass fmt, clippy and test. Commit straight to `main`,
+small and focused; never force-push. Not published to crates.io.
+
+## Layout
 
 - `crates/kdl-span`: `SourceMap` (files in one global offset space),
   `Span`, `Label`, lazy line/col, `did_you_mean`. kdl only.
@@ -34,11 +40,11 @@ nix develop -c cargo bench -p kdl-serde         # divan benchmar## Layout
 - `crates/kdl-serde/src/error.rs`: `Error` with stable codes; raw document
   offsets are resolved against the `SourceMap` at the public entry points.
 - `docs/errors.md`: every error code (a test keeps it in sync).
-
-c/magic.rs`.
-- `tests/mapping.rs` (one test per rule), `tests/errors.rs` (insta
-  snapshots of rendered diagnostics), `tests/roundtrip.rs` (proptest, every
-  `Options` style), `tests/fixtures.rs` + `tests/fixtures/*.kdl`.
+- `crates/kdl-pretty-cli`: the `kdl-pretty` binary (treefmt, `--check`).
+- kdl-serde tests: `tests/mapping.rs` (one test per rule), `tests/errors.rs`
+  (insta snapshots, `--features miette`), `tests/roundtrip.rs` (proptest,
+  every `Options` style), `tests/fixtures.rs` + `tests/fixtures/*.kdl`,
+  `tests/error_codes.rs`; benches in `benches/kdl.rs`.
 
 ## Conventions
 
