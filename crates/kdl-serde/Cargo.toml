@@ -18,12 +18,12 @@ kdl-nodes.workspace = true
 kdl-pretty.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-miette.workspace = true
+miette = { workspace = true, optional = true }
 
 [features]
 default = ["parallel"]
 parallel = ["kdl-load/parallel"]
-miette = ["kdl-span/miette", "kdl-load/miette", "kdl-nodes/miette"]
+miette = ["dep:miette", "kdl-span/miette", "kdl-load/miette", "kdl-nodes/miette"]
 
 [lints]
 workspace = true
