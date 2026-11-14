@@ -6,8 +6,12 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/kdl-nodes"
+readme = "README.md"
+keywords = ["kdl", "config", "nodes"]
+categories = ["config", "parser-implementations"]
 authors.workspace = true
-publish.workspace = true
 
 [dependencies]
 kdl-tree.workspace = true
@@ -23,3 +27,6 @@ workspace = true
 
 [dev-dependencies]
 kdl-load.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true

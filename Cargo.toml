@@ -8,8 +8,8 @@ edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"
 repository = "https://github.com/talaagent/kdl-serde"
+homepage = "https://github.com/talaagent/kdl-serde"
 authors = ["Ian Macalinao <github@igm.pub>"]
-publish = false
 
 [workspace.dependencies]
 kdl = { version = "6.7", default-features = false, features = ["span"] }
@@ -21,12 +21,13 @@ thiserror = "2"
 rayon = "1"
 anyhow = "1"
 pico-args = "0.5"
-kdl-span = { path = "crates/kdl-span", default-features = false }
-kdl-tree = { path = "crates/kdl-tree" }
-kdl-load = { path = "crates/kdl-load", default-features = false }
-kdl-nodes = { path = "crates/kdl-nodes", default-features = false }
-kdl-pretty = { path = "crates/kdl-pretty" }
-kdl-serde = { path = "crates/kdl-serde" }
+# Workspace crates: one shared version.
+kdl-span = { path = "crates/kdl-span", version = "0.1.0", default-features = false }
+kdl-tree = { path = "crates/kdl-tree", version = "0.1.0" }
+kdl-load = { path = "crates/kdl-load", version = "0.1.0", default-features = false }
+kdl-nodes = { path = "crates/kdl-nodes", version = "0.1.0", default-features = false }
+kdl-pretty = { path = "crates/kdl-pretty", version = "0.1.0" }
+kdl-serde = { path = "crates/kdl-serde", version = "0.1.0" }
 insta = "1"
 proptest = "1"
 tempfile = "3"

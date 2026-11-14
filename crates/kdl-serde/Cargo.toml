@@ -6,8 +6,14 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/kdl-serde"
+readme = "README.md"
+keywords = ["kdl", "serde", "serialization", "config"]
+categories = ["encoding", "config", "parser-implementations"]
 authors.workspace = true
-publish.workspace = true
+# Checks docs/errors.md against the whole workspace; repository only.
+exclude = ["tests/error_codes.rs"]
 
 [dependencies]
 kdl.workspace = true
@@ -39,3 +45,6 @@ tempfile.workspace = true
 [[bench]]
 name = "kdl"
 harness = false
+
+[package.metadata.docs.rs]
+all-features = true

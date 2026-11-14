@@ -6,8 +6,15 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/kdl-tree"
+readme = "README.md"
+keywords = ["kdl", "parser", "spans", "document-tree"]
+categories = ["parser-implementations"]
 authors.workspace = true
-publish.workspace = true
+# The tests need the `kdl` feature through the path dev-dependency on
+# this crate (dropped on publish), so they stay in the repository.
+exclude = ["tests/"]
 
 [dependencies]
 thiserror.workspace = true
@@ -25,3 +32,6 @@ workspace = true
 kdl-tree = { path = ".", features = ["kdl"] }
 kdl.workspace = true
 proptest.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true

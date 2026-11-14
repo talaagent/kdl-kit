@@ -6,8 +6,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["kdl", "formatter", "cli", "treefmt"]
+categories = ["command-line-utilities", "development-tools"]
 authors.workspace = true
-publish.workspace = true
 
 [[bin]]
 name = "kdl-pretty"
