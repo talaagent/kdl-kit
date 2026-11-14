@@ -13,9 +13,8 @@
 //! ```
 //!
 //! Every function takes a [`kdl_tree::Document`] (from `kdl-load`'s
-//! `Loaded::tree`) and its nodes; with the deprecated, default-on
-//! `kdl-compat` feature they also take `kdl::KdlDocument`s, through the
-//! [`Doc`] and [`NodeLike`] traits.
+//! `Loaded::tree`) and its nodes, through the [`Doc`] and [`NodeLike`]
+//! traits.
 //!
 //! Errors carry stable codes (`kdl_nodes::duplicate_name`,
 //! `kdl_nodes::expected_identifier`) and [`Label`]s resolved through the
@@ -85,37 +84,6 @@ impl<'s> NodeLike for Node<'s> {
             Value::String(s) => Some(s),
             _ => None,
         }
-    }
-}
-
-#[cfg(feature = "kdl-compat")]
-impl Doc for kdl::KdlDocument {
-    type Node = kdl::KdlNode;
-
-    fn doc_nodes(&self) -> &[kdl::KdlNode] {
-        self.nodes()
-    }
-}
-
-#[cfg(feature = "kdl-compat")]
-impl NodeLike for kdl::KdlNode {
-    type Doc = kdl::KdlDocument;
-    type Arg = kdl::KdlEntry;
-
-    fn node_name(&self) -> &str {
-        self.name().value()
-    }
-
-    fn node_children(&self) -> Option<&kdl::KdlDocument> {
-        self.children()
-    }
-
-    fn node_args(&self) -> impl Iterator<Item = &Self::Arg> {
-        self.entries().iter().filter(|e| e.name().is_none())
-    }
-
-    fn arg_str(arg: &Self::Arg) -> Option<&str> {
-        arg.value().as_string()
     }
 }
 
@@ -418,19 +386,5 @@ mod tests {
             seen.push(format!("{}{}", path.len(), n.name().value()))
         });
         assert_eq!(seen, ["0a", "1b", "2c", "1d", "0e"]);
-    }
-
-    #[test]
-    #[cfg(feature = "kdl-compat")]
-    fn reads_kdl_documents() {
-        let s = "struct A { x }\nstruct B\nstruct A";
-        let mut sm = SourceMap::new();
-        sm.add("t.kdl", s);
-        let doc: kdl::KdlDocument = s.parse().unwrap();
-        let e = named_blocks(&doc, "struct", &sm).unwrap_err();
-        assert_eq!(e.code(), "kdl_nodes::duplicate_name");
-        let a = &doc.nodes()[0];
-        assert_eq!(identifier(a, &sm).unwrap(), "A");
-        assert_eq!(children(a).count(), 1);
     }
 }

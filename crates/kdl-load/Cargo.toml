@@ -12,16 +12,13 @@ publish.workspace = true
 [dependencies]
 kdl-tree.workspace = true
 kdl-span.workspace = true
-kdl = { workspace = true, optional = true }
 thiserror.workspace = true
 miette = { workspace = true, optional = true }
 rayon = { workspace = true, optional = true }
 
 [features]
-default = ["parallel", "kdl-compat"]
+default = ["parallel"]
 parallel = ["dep:rayon"]
-# Deprecated, for one release: the `kdl::KdlDocument` view of a load.
-kdl-compat = ["dep:kdl", "kdl-tree/kdl", "kdl-span/kdl-compat"]
 miette = ["dep:miette", "kdl-span/miette"]
 
 [lints]

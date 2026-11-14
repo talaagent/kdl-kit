@@ -275,7 +275,6 @@ dependencies = [
 name = "kdl-load"
 version = "0.1.0"
 dependencies = [
- "kdl",
  "kdl-span",
  "kdl-tree",
  "miette",
@@ -288,7 +287,6 @@ dependencies = [
 name = "kdl-nodes"
 version = "0.1.0"
 dependencies = [
- "kdl",
  "kdl-load",
  "kdl-span",
  "kdl-tree",
@@ -339,7 +337,6 @@ dependencies = [
 name = "kdl-span"
 version = "0.1.0"
 dependencies = [
- "kdl",
  "kdl-tree",
  "miette",
 ]

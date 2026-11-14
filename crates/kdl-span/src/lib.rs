@@ -301,8 +301,7 @@ impl SourceMap {
 }
 
 /// A part of a document with a global span: `kdl-tree`'s nodes, entries,
-/// identifiers and documents, and (with the default `kdl-compat` feature)
-/// `kdl`'s.
+/// identifiers and documents.
 pub trait Spanned {
     /// The span in the source map's global offset space.
     fn global_span(&self) -> kdl_tree::Span;
@@ -341,30 +340,6 @@ impl Spanned for kdl_tree::Ident<'_> {
 impl Spanned for kdl_tree::Document<'_> {
     fn global_span(&self) -> kdl_tree::Span {
         self.span()
-    }
-}
-
-#[cfg(feature = "kdl-compat")]
-mod kdl_compat {
-    use super::{Spanned, SpannedNode};
-
-    macro_rules! spanned {
-        ($($t:ty)*) => {$(
-            impl Spanned for $t {
-                fn global_span(&self) -> kdl_tree::Span {
-                    let s = self.span();
-                    kdl_tree::Span::new(s.offset(), s.len())
-                }
-            }
-        )*};
-    }
-
-    spanned!(kdl::KdlNode kdl::KdlEntry kdl::KdlIdentifier kdl::KdlDocument);
-
-    impl SpannedNode for kdl::KdlNode {
-        fn name_span(&self) -> kdl_tree::Span {
-            self.name().global_span()
-        }
     }
 }
 

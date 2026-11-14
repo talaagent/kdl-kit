@@ -18,11 +18,6 @@ kdl-serde = { git = "https://github.com/talaagent/kdl-serde" }
 | [`kdl-pretty`](crates/kdl-pretty) | Deterministic formatter for any `KdlDocument`, and the `kdl-pretty` CLI (treefmt-friendly, `--check`) | kdl |
 | [`kdl-serde`](crates/kdl-serde) | serde `Deserializer`/`Serializer` with KDL-shaped conventions; typed `from_dir`, `named_blocks`, `named_map` | serde + the above |
 
-The default `kdl-compat` feature of kdl-span, kdl-load, kdl-nodes and
-kdl-serde keeps the old `kdl::KdlDocument` entry points (`Loaded::doc`,
-`from_doc`, kdl-nodes on `KdlDocument`s) for one release; they are
-deprecated and convert to or from the tree.
-
 Only `kdl-serde` depends on serde (CI checks this). Every crate's errors are
 `thiserror` types with stable codes ([docs/errors.md](docs/errors.md)), help
 text and spans; the `miette` feature (off by default) adds

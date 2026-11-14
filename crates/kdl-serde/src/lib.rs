@@ -135,25 +135,6 @@ pub fn from_tree<'de, T: Deserialize<'de>>(
     T::deserialize(document(doc)).map_err(|e| e.resolve(sources))
 }
 
-/// Deserializes a `T` from a `kdl` document.
-///
-/// Error spans point into the document's own text (its `Display` output),
-/// which matches the original input when the document came from
-/// [`KdlDocument::parse`] and has not been edited.
-#[cfg(feature = "kdl-compat")]
-#[deprecated(
-    note = "use `from_str`, `from_loaded` or `from_tree`; `kdl` input goes away with \
-                     the `kdl-compat` feature"
-)]
-pub fn from_doc<T: DeserializeOwned>(doc: &KdlDocument) -> Result<T> {
-    let tree = Document::from_kdl(doc);
-    T::deserialize(document(&tree)).map_err(|e| {
-        let mut sources = SourceMap::new();
-        sources.add("", doc.to_string());
-        e.resolve(&sources)
-    })
-}
-
 fn document<'a>(doc: &'a Document<'a>) -> BlockDe<'a> {
     let nodes: Vec<NodeRef<'a>> = doc.nodes().iter().map(|node| NodeRef { node }).collect();
     BlockDe::new(nodes, kdl_tree::Span::default())

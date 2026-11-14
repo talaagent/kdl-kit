@@ -11,13 +11,9 @@ publish.workspace = true
 
 [dependencies]
 kdl-tree.workspace = true
-kdl = { workspace = true, optional = true }
 miette = { workspace = true, optional = true }
 
 [features]
-default = ["kdl-compat"]
-# Deprecated, for one release: `Spanned` for `kdl`'s document types.
-kdl-compat = ["dep:kdl"]
 miette = ["dep:miette"]
 
 [lints]

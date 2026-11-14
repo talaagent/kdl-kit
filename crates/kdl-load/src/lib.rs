@@ -10,10 +10,6 @@
 //! [`SourceMap::node_name`] and friends turn them into file-local
 //! [`Span`]s.
 //!
-//! The default `kdl-compat` feature keeps the `kdl::KdlDocument` view
-//! ([`Loaded::doc`], [`Loaded::into_parts`]) for one release; it is
-//! deprecated and converts the tree on first use.
-//!
 //! With the default `parallel` feature, files are read and parsed on
 //! rayon's thread pool; the merge order is always the sorted path order.
 //!
@@ -43,18 +39,11 @@ pub use kdl_tree::{Document, Entry, Ident, Node, Value};
 pub struct Loaded {
     tree: Document<'static>,
     sources: SourceMap,
-    #[cfg(feature = "kdl-compat")]
-    kdl: std::sync::OnceLock<kdl::KdlDocument>,
 }
 
 impl Loaded {
     fn new(tree: Document<'static>, sources: SourceMap) -> Self {
-        Self {
-            tree,
-            sources,
-            #[cfg(feature = "kdl-compat")]
-            kdl: std::sync::OnceLock::new(),
-        }
+        Self { tree, sources }
     }
 
     /// The merged document.
@@ -70,28 +59,6 @@ impl Loaded {
     /// The document and source map.
     pub fn into_tree(self) -> (Document<'static>, SourceMap) {
         (self.tree, self.sources)
-    }
-
-    /// The merged document as a `kdl::KdlDocument`, converted from
-    /// [`tree`](Self::tree) on first use (spans kept, formatting and
-    /// comments not).
-    #[cfg(feature = "kdl-compat")]
-    #[deprecated(note = "use `tree()`; the `kdl` view goes away with the `kdl-compat` feature")]
-    pub fn doc(&self) -> &kdl::KdlDocument {
-        self.kdl.get_or_init(|| self.tree.to_kdl())
-    }
-
-    /// The document as a `kdl::KdlDocument`, and the source map.
-    #[cfg(feature = "kdl-compat")]
-    #[deprecated(
-        note = "use `into_tree()`; the `kdl` view goes away with the `kdl-compat` feature"
-    )]
-    pub fn into_parts(self) -> (kdl::KdlDocument, SourceMap) {
-        let doc = match self.kdl.into_inner() {
-            Some(doc) => doc,
-            None => self.tree.to_kdl(),
-        };
-        (doc, self.sources)
     }
 }
 
@@ -435,25 +402,6 @@ mod tests {
         assert_eq!(e.code(), "kdl_load::parse");
         assert_eq!(e.kind(), kdl_tree::ErrorKind::Unterminated);
         assert_eq!(e.problems()[0].label.span.offset, 4);
-    }
-
-    #[test]
-    #[cfg(feature = "kdl-compat")]
-    #[allow(deprecated)]
-    fn kdl_view_keeps_global_spans() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("a.kdl"), "x 1").unwrap();
-        std::fs::write(dir.path().join("b.kdl"), "\n  y k=2").unwrap();
-        let loaded = load_dir(dir.path(), false).unwrap();
-        let y = &loaded.doc().nodes()[1];
-        assert_eq!(y.name().value(), "y");
-        let span = loaded.sources().node_name(y).unwrap();
-        assert_eq!(
-            loaded.sources().file(span.file).line_col(span.offset),
-            (2, 3)
-        );
-        let k = loaded.sources().entry(&y.entries()[0]).unwrap();
-        assert_eq!((k.offset, k.len), (5, 3));
     }
 
     #[test]

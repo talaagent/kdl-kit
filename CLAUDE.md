@@ -2,8 +2,8 @@
 
 Generic KDL v2 libraries: kdl-tree, kdl-span, kdl-load, kdl-nodes,
 kdl-pretty (+ kdl-pretty-cli) and kdl-serde. The read path uses our own
-parser (kdl-tree); the `kdl` crate (v6) is only for writing/formatting,
-the deprecated `kdl-compat` views, and as a test oracle. Consumed by
+parser (kdl-tree); the `kdl` crate (v6) is only for writing/formatting
+and as a test oracle. Consumed by
 talaagent/korek via git, so public APIs stay small, documented and stable.
 
 ## Commands
@@ -34,12 +34,10 @@ small and focused; never force-push. Not published to crates.io.
   parsed straight into global offsets (`ParseOptions::base`); parallel
   behind the default `parallel` feature.
 - `crates/kdl-nodes`: untyped named-block helpers, generic over `Doc` /
-  `NodeLike` (kdl-tree, and `kdl` under `kdl-compat`). No serde.
+  `NodeLike`. No serde.
 - `crates/kdl-pretty`: the deterministic formatter (don't use kdl-rs
   autoformat/`Display` for output; it collapses multiline strings,
   kdl-org/kdl-rs#77). kdl only.
-- `kdl-compat` (default on in span/load/nodes/serde): deprecated `kdl`
-  views for one release; keep it compiling, don't build on it.
 - `crates/kdl-serde/src/de.rs` (reads `kdl_tree` nodes): `BlockDe` (document / children block),
   `GroupDe` (same-named siblings = one field), `NodeDe` (one node),
   `ValueDe` (one argument or property), `ElemDe` (a sequence element whose
