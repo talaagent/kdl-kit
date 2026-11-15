@@ -4,7 +4,9 @@
 // licensed under the MIT license or the Apache License, Version 2.0, at
 // your option. Changes: spans on every node, name, type, entry, key, value
 // and children block; structured errors with byte offsets and codes; a
-// configurable depth cap; no slashdash whitespace requirement.
+// configurable depth cap; a slashdashed entry no longer needs whitespace
+// before its `/-` (`node "a"/-1`), as the KDL 2.0 grammar allows
+// (`node-space* (node-space | slashdash) node-prop-or-arg`).
 
 //! The KDL v2 parser: one pass over the bytes with an ASCII fast path,
 //! decoding UTF-8 only on non-ASCII bytes. Strings that need no unescaping
