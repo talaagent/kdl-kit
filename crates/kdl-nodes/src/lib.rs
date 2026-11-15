@@ -23,6 +23,10 @@
 
 use std::sync::Arc;
 
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+struct ReadmeDoctests;
+
 pub use kdl_span::{Label, SourceFile, SourceMap, Span, Spanned, SpannedNode};
 use kdl_tree::{Document, Node, Value};
 

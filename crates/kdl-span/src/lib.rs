@@ -27,6 +27,10 @@
 
 use std::sync::{Arc, OnceLock};
 
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+struct ReadmeDoctests;
+
 /// Identifies a file in a [`SourceMap`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FileId(u32);

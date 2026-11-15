@@ -1,8 +1,10 @@
 # kdl-serde
 
-A [serde] `Deserializer` and `Serializer` for [KDL v2] documents, built on the
-[`kdl`] crate (v6). Errors are [miette] diagnostics that point at the file,
-line and column of the offending node, argument or property.
+A [serde] `Deserializer` and `Serializer` for [KDL v2] documents. Reading
+uses the [`kdl-tree`] parser; writing uses the [`kdl`] crate (v6) and
+[`kdl-pretty`]. Errors point at the file, line and column of the offending
+node, argument or property, and with the `miette` feature they are [miette]
+diagnostics.
 
 ```rust
 use serde::{Deserialize, Serialize};
@@ -28,6 +30,8 @@ assert_eq!(kdl_serde::to_string_pretty(&config)?, "name \"api\"\nport 8080\ntags
 [serde]: https://serde.rs
 [KDL v2]: https://kdl.dev
 [`kdl`]: https://docs.rs/kdl
+[`kdl-tree`]: https://docs.rs/kdl-tree
+[`kdl-pretty`]: https://docs.rs/kdl-pretty
 [miette]: https://docs.rs/miette
 
 ## API
@@ -227,7 +231,7 @@ into one `Vec`. Errors name the file they come from.
 ### Errors
 
 Every deserialization error has a stable code (`Error::code()`, listed in
-[docs/errors.md](../../docs/errors.md)), a message, optional help and
+[docs/errors.md](https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md)), a message, optional help and
 labeled spans (`Error::labels()`, as `kdl_span::Span { file, offset, len }`
 with `Error::source_file()` for the text and name), so callers can render
 it however they like; `Error::location()` gives `file:line:col`. With the
@@ -248,8 +252,8 @@ kdl_serde::unknown_field (https://github.com/talaagent/kdl-serde/blob/main/docs/
 
 Line and column are computed only for errors that are reported. `kdl`
 itself depends on `miette` (its spans are `miette::SourceSpan`), so the
-crate is always in the dependency tree, but none of our public APIs use
-its types unless the `miette` feature is on.
+crate is always in the dependency tree, but kdl-serde's public API uses
+none of its types unless the `miette` feature is on.
 
 ### Printing
 
@@ -270,13 +274,9 @@ the same text.
   there (use plain names), and a `Vec` field holding a single node reads as
   that node, not a one-element list. Internally tagged enums are read, but
   written as externally tagged.
-- `u128` values above `i128::MAX` cannot be written. kdl 6.7 cannot parse
-  `-170141183460469231731687303715884105728` (`i128::MIN`).
+- `u128` values above `i128::MAX` cannot be written.
 - Comments and formatting are not preserved; `RawNode` and `RawDocument`
   keep content, not layout.
-- Parsing is kdl-rs's: about 3–4 MB/s, which dominates `from_str` (see
-  the benchmarks in `benches/kdl.rs`). Deserializing a parsed document is
-  ~20x faster than parsing it.
 - `Option<Option<T>>` cannot tell `Some(None)` from `None`.
 
 ## Prior art
@@ -295,4 +295,4 @@ lists, maps and variants on read.
 
 ## License
 
-Apache-2.0. Copyright 2026 Ian Macalinao.
+Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-serde/blob/main/LICENSE).

@@ -33,6 +33,10 @@
 
 extern crate alloc;
 
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+struct ReadmeDoctests;
+
 #[cfg(feature = "kdl")]
 mod compat;
 mod error;

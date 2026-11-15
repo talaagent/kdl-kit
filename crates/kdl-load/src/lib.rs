@@ -31,6 +31,10 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+struct ReadmeDoctests;
+
 pub use kdl_span::{FileId, Label, SourceFile, SourceMap, Span, Spanned, SpannedNode};
 pub use kdl_tree::{Document, Entry, Ident, Node, Value};
 

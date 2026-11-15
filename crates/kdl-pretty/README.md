@@ -1,8 +1,8 @@
 # kdl-pretty
 
 A deterministic, comment-preserving formatter for KDL v2 documents, built
-on the [`kdl`](https://crates.io/crates/kdl) crate (v6). The library
-depends on `kdl` only.
+on the [`kdl`](https://crates.io/crates/kdl) crate (v6), its only
+dependency.
 
 ```rust
 let src = "server   \"main\" port=8080 { host localhost } // prod\n";
@@ -64,11 +64,11 @@ already-parsed document can't see comments kdl-rs dropped after a `}`;
 
 ## CLI
 
-The `kdl-pretty-cli` package builds a `kdl-pretty` binary:
+The [`kdl-pretty-cli`](https://crates.io/crates/kdl-pretty-cli) package
+installs a `kdl-pretty` binary:
 
 ```sh
-cargo install --path crates/kdl-pretty-cli
-
+cargo install kdl-pretty-cli
 kdl-pretty [--check] [--indent N] [FILES...]
 ```
 
@@ -89,3 +89,7 @@ kdl-pretty [--check] [--indent N] [FILES...]
 command = "kdl-pretty"
 includes = ["*.kdl"]
 ```
+
+## License
+
+Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-serde/blob/main/LICENSE).
