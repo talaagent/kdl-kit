@@ -74,7 +74,7 @@ pub fn format(doc: &KdlDocument, opts: &Options) -> String {
     p.out
 }
 
-/// Parses `src` as KDL v2 and formats it like [`format`].
+/// Parses `src` as KDL v2 and formats it like [`format()`].
 ///
 /// ```
 /// let src = "a 1 // one\nb { c #\"x\\y\"# } // b\n";
