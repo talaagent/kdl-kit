@@ -1,47 +1,187 @@
-name: ci
+# CI: fmt, clippy, tests, the official KDL suite, per-crate features, MSRV,
+# docs, cargo-deny, package verification and the Nix dev shell.
+
+name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  # The toolchain the crates are developed against (rust-toolchain.toml).
+  RUST_TOOLCHAIN: "1.98.1"
 
 jobs:
-  check:
-    # Off while the repo is private (no Actions minutes); on once public.
-    if: ${{ !github.event.repository.private }}
+  fmt:
+    name: rustfmt
     runs-on: ubuntu-latest
-    timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v31
-      - name: fmt
-        run: nix develop -c cargo fmt --check
-      - name: clippy
+      - uses: actions/checkout@v7
+      # dtolnay/rust-toolchain master @ 2026-10-16; installs env.RUST_TOOLCHAIN (1.98.1)
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # dtolnay/rust-toolchain master @ 2026-10-16; installs env.RUST_TOOLCHAIN (1.98.1)
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      # --all-targets includes the divan benches.
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # dtolnay/rust-toolchain master @ 2026-10-16; installs env.RUST_TOOLCHAIN (1.98.1)
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      # Benches are type-checked by clippy; nextest skips them.
+      - run: cargo nextest run --profile ci --workspace --locked
+      - run: cargo nextest run --profile ci --workspace --all-features --locked
+      # README and API examples (several READMEs are included as crate docs).
+      - run: cargo test --workspace --all-features --doc --locked
+
+  features:
+    name: per-crate features
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # dtolnay/rust-toolchain master @ 2026-10-16; installs env.RUST_TOOLCHAIN (1.98.1)
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: Swatinem/rust-cache@v2
+      - name: each crate without default features
         run: |
-          nix develop -c cargo clippy --workspace --all-targets -- -D warnings
-          nix develop -c cargo clippy --workspace --all-targets --all-features -- -D warnings
-      - name: official KDL test suite (kdl-org/kdl, pinned)
+          for p in kdl-tree kdl-span kdl-load kdl-nodes kdl-pretty kdl-pretty-cli kdl-serde; do
+            cargo test -p "$p" --no-default-features --locked
+          done
+      - name: each crate with miette
+        run: |
+          for p in kdl-span kdl-load kdl-nodes kdl-serde; do
+            cargo test -p "$p" --features miette --locked
+          done
+      - name: only kdl-serde depends on serde
+        run: |
+          for p in kdl-tree kdl-span kdl-load kdl-nodes kdl-pretty; do
+            if cargo tree -p "$p" -e normal --all-features --locked | grep -qE '(^|[ ─])serde(_[a-z]+)? v'; then
+              echo "$p depends on serde"; exit 1
+            fi
+          done
+
+  spec:
+    name: official KDL test suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # dtolnay/rust-toolchain master @ 2026-10-16; installs env.RUST_TOOLCHAIN (1.98.1)
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: Swatinem/rust-cache@v2
+      - name: kdl-org/kdl test cases (pinned)
         run: |
           git init -q target/kdl-spec
           git -C target/kdl-spec fetch -q --depth 1 https://github.com/kdl-org/kdl.git 89c1087d5e7f530de328f18b6a0fad54ca8ea227
           git -C target/kdl-spec checkout -q FETCH_HEAD
-          KDL_SPEC_DIR=$PWD/target/kdl-spec nix develop -c cargo test -p kdl-tree --test spec -- --nocapture
-      - name: test (each crate, without and with miette)
+          KDL_SPEC_DIR=$PWD/target/kdl-spec cargo test -p kdl-tree --test spec --locked -- --nocapture
+
+  msrv:
+    name: MSRV
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read rust-version from Cargo.toml
+        id: msrv
         run: |
-          for p in kdl-tree kdl-span kdl-load kdl-nodes kdl-pretty kdl-serde; do
-            nix develop -c cargo test -p "$p" --no-default-features
-            nix develop -c cargo test -p "$p" --features miette 2>/dev/null \
-              || nix develop -c cargo test -p "$p"
-          done
-          nix develop -c cargo test --workspace --all-features
-      - name: only kdl-serde depends on serde
-        run: |
-          for p in kdl-tree kdl-span kdl-load kdl-nodes kdl-pretty; do
-            if nix develop -c cargo tree -p "$p" -e normal --all-features | grep -qE '(^|[ ─])serde(_[a-z]+)? v'; then
-              echo "$p depends on serde"; exit 1
-            fi
-          done
+          msrv=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])')
+          echo "MSRV: $msrv"
+          echo "version=$msrv" >> "$GITHUB_OUTPUT"
+      # Re-resolve Cargo.lock with a current cargo, whose rust-version-aware
+      # resolver (resolver 3) picks dependency versions that still build on
+      # the MSRV.
+      # dtolnay/rust-toolchain master @ 2026-10-16; installs env.RUST_TOOLCHAIN (1.98.1)
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - run: cargo generate-lockfile
+      # dtolnay/rust-toolchain master @ 2026-10-16; installs the MSRV (rust-version)
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo +${{ steps.msrv.outputs.version }} check --workspace --all-targets --all-features --locked
+      - run: cargo +${{ steps.msrv.outputs.version }} test --workspace --all-features --locked
+
+  doc:
+    name: docs
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v7
+      # dtolnay/rust-toolchain master @ 2026-10-16; installs env.RUST_TOOLCHAIN (1.98.1)
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo doc --workspace --no-deps --all-features --locked
+
+  deny:
+    name: cargo-deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Licenses (permissive only), advisories, bans and sources: see
+      # deny.toml.
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+
+  package:
+    name: package verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # dtolnay/rust-toolchain master @ 2026-10-16; installs env.RUST_TOOLCHAIN (1.98.1)
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: Swatinem/rust-cache@v2
+      # Packages and builds every crate against the others' packaged sources.
+      - run: cargo publish --workspace --dry-run --locked
+
+  nix:
+    name: Nix dev shell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - run: nix flake check -L
+      - run: nix develop --command cargo nextest --version
+      - run: nix develop --command cargo fmt --all --check
