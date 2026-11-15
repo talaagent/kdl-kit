@@ -1,5 +1,7 @@
 # kdl-pretty-cli
 
+[![crates.io][version-badge]][crate] [![downloads][downloads-badge]][crate] [![lib.rs][librs-badge]][librs] [![License: Apache-2.0][license-badge]][license]
+
 The `kdl-pretty` command: formats KDL v2 files with
 [`kdl-pretty`](https://crates.io/crates/kdl-pretty). Comments are kept and
 the output is deterministic.
@@ -39,3 +41,11 @@ includes = ["*.kdl"]
 ## License
 
 Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-kit/blob/main/LICENSE).
+
+[version-badge]: https://img.shields.io/crates/v/kdl-pretty-cli.svg
+[downloads-badge]: https://img.shields.io/crates/d/kdl-pretty-cli.svg
+[crate]: https://crates.io/crates/kdl-pretty-cli
+[librs-badge]: https://img.shields.io/badge/lib.rs-kdl--pretty--cli-purple.svg
+[librs]: https://lib.rs/crates/kdl-pretty-cli
+[license-badge]: https://img.shields.io/badge/license-Apache--2.0-blue.svg
+[license]: https://github.com/talaagent/kdl-kit/blob/main/LICENSE

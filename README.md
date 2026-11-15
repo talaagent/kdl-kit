@@ -1,5 +1,7 @@
 # kdl-kit
 
+[![CI][ci-badge]][ci] [![crates.io][version-badge]][crate] [![downloads][downloads-badge]][crate] [![docs.rs][docs-badge]][docs] [![lib.rs][librs-badge]][librs] [![Rust 1.95+][msrv-badge]][msrv] [![License: Apache-2.0][license-badge]][license]
+
 KDL v2 for Rust: a fast span-carrying parser, serde support, and a
 deterministic formatter. It also loads files and whole directories as one
 document with a source map, so errors point at the right file, line and
@@ -79,3 +81,17 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Licensed under the [Apache License, Version 2.0](LICENSE). The KDL parser in
 `kdl-tree` is derived from club-kdl; see [NOTICE](NOTICE).
+
+[ci-badge]: https://github.com/talaagent/kdl-kit/actions/workflows/ci.yml/badge.svg
+[ci]: https://github.com/talaagent/kdl-kit/actions/workflows/ci.yml
+[version-badge]: https://img.shields.io/crates/v/kdl-serde.svg
+[downloads-badge]: https://img.shields.io/crates/d/kdl-serde.svg
+[crate]: https://crates.io/crates/kdl-serde
+[docs-badge]: https://docs.rs/kdl-serde/badge.svg
+[docs]: https://docs.rs/kdl-serde
+[librs-badge]: https://img.shields.io/badge/lib.rs-kdl--serde-purple.svg
+[librs]: https://lib.rs/crates/kdl-serde
+[msrv-badge]: https://img.shields.io/badge/rust-1.95%2B-orange.svg
+[msrv]: https://github.com/talaagent/kdl-kit/blob/main/Cargo.toml
+[license-badge]: https://img.shields.io/badge/license-Apache--2.0-blue.svg
+[license]: https://github.com/talaagent/kdl-kit/blob/main/LICENSE

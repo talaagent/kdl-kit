@@ -1,5 +1,7 @@
 # kdl-nodes
 
+[![crates.io][version-badge]][crate] [![downloads][downloads-badge]][crate] [![docs.rs][docs-badge]][docs] [![lib.rs][librs-badge]][librs] [![License: Apache-2.0][license-badge]][license]
+
 Untyped helpers for the most common [KDL](https://kdl.dev) shape, named
 blocks (`<kind> <name> { body }`), over
 [`kdl-tree`](https://crates.io/crates/kdl-tree) documents: listing and
@@ -27,3 +29,13 @@ API docs: [docs.rs/kdl-nodes](https://docs.rs/kdl-nodes).
 ## License
 
 Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-kit/blob/main/LICENSE).
+
+[version-badge]: https://img.shields.io/crates/v/kdl-nodes.svg
+[downloads-badge]: https://img.shields.io/crates/d/kdl-nodes.svg
+[crate]: https://crates.io/crates/kdl-nodes
+[docs-badge]: https://docs.rs/kdl-nodes/badge.svg
+[docs]: https://docs.rs/kdl-nodes
+[librs-badge]: https://img.shields.io/badge/lib.rs-kdl--nodes-purple.svg
+[librs]: https://lib.rs/crates/kdl-nodes
+[license-badge]: https://img.shields.io/badge/license-Apache--2.0-blue.svg
+[license]: https://github.com/talaagent/kdl-kit/blob/main/LICENSE

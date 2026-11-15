@@ -1,5 +1,7 @@
 # kdl-tree
 
+[![crates.io][version-badge]][crate] [![downloads][downloads-badge]][crate] [![docs.rs][docs-badge]][docs] [![lib.rs][librs-badge]][librs] [![License: Apache-2.0][license-badge]][license]
+
 A fast [KDL v2](https://kdl.dev) parser into a borrowed document tree with
 a byte span on every node, name, type annotation, entry, property key,
 value and children block. Its only dependency is `thiserror`. The optional
@@ -42,3 +44,13 @@ block (`node "a"/-{}`) needs no whitespace in either parser.
 ## License
 
 Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-kit/blob/main/LICENSE).
+
+[version-badge]: https://img.shields.io/crates/v/kdl-tree.svg
+[downloads-badge]: https://img.shields.io/crates/d/kdl-tree.svg
+[crate]: https://crates.io/crates/kdl-tree
+[docs-badge]: https://docs.rs/kdl-tree/badge.svg
+[docs]: https://docs.rs/kdl-tree
+[librs-badge]: https://img.shields.io/badge/lib.rs-kdl--tree-purple.svg
+[librs]: https://lib.rs/crates/kdl-tree
+[license-badge]: https://img.shields.io/badge/license-Apache--2.0-blue.svg
+[license]: https://github.com/talaagent/kdl-kit/blob/main/LICENSE

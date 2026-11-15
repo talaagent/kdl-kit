@@ -1,5 +1,7 @@
 # kdl-serde
 
+[![crates.io][version-badge]][crate] [![downloads][downloads-badge]][crate] [![docs.rs][docs-badge]][docs] [![lib.rs][librs-badge]][librs] [![License: Apache-2.0][license-badge]][license]
+
 A [serde] `Deserializer` and `Serializer` for [KDL v2] documents. Reading
 uses the [`kdl-tree`] parser; writing uses the [`kdl`] crate (v6) and
 [`kdl-pretty`]. Errors point at the file, line and column of the offending
@@ -296,3 +298,13 @@ lists, maps and variants on read.
 ## License
 
 Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-kit/blob/main/LICENSE).
+
+[version-badge]: https://img.shields.io/crates/v/kdl-serde.svg
+[downloads-badge]: https://img.shields.io/crates/d/kdl-serde.svg
+[crate]: https://crates.io/crates/kdl-serde
+[docs-badge]: https://docs.rs/kdl-serde/badge.svg
+[docs]: https://docs.rs/kdl-serde
+[librs-badge]: https://img.shields.io/badge/lib.rs-kdl--serde-purple.svg
+[librs]: https://lib.rs/crates/kdl-serde
+[license-badge]: https://img.shields.io/badge/license-Apache--2.0-blue.svg
+[license]: https://github.com/talaagent/kdl-kit/blob/main/LICENSE

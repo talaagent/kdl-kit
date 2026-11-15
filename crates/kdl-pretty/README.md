@@ -1,5 +1,7 @@
 # kdl-pretty
 
+[![crates.io][version-badge]][crate] [![downloads][downloads-badge]][crate] [![docs.rs][docs-badge]][docs] [![lib.rs][librs-badge]][librs] [![License: Apache-2.0][license-badge]][license]
+
 A deterministic, comment-preserving formatter for KDL v2 documents, built
 on the [`kdl`](https://crates.io/crates/kdl) crate (v6), its only
 dependency.
@@ -93,3 +95,13 @@ includes = ["*.kdl"]
 ## License
 
 Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-kit/blob/main/LICENSE).
+
+[version-badge]: https://img.shields.io/crates/v/kdl-pretty.svg
+[downloads-badge]: https://img.shields.io/crates/d/kdl-pretty.svg
+[crate]: https://crates.io/crates/kdl-pretty
+[docs-badge]: https://docs.rs/kdl-pretty/badge.svg
+[docs]: https://docs.rs/kdl-pretty
+[librs-badge]: https://img.shields.io/badge/lib.rs-kdl--pretty-purple.svg
+[librs]: https://lib.rs/crates/kdl-pretty
+[license-badge]: https://img.shields.io/badge/license-Apache--2.0-blue.svg
+[license]: https://github.com/talaagent/kdl-kit/blob/main/LICENSE

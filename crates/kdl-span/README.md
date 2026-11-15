@@ -1,5 +1,7 @@
 # kdl-span
 
+[![crates.io][version-badge]][crate] [![downloads][downloads-badge]][crate] [![docs.rs][docs-badge]][docs] [![lib.rs][librs-badge]][librs] [![License: Apache-2.0][license-badge]][license]
+
 Source maps, spans and diagnostic building blocks for
 [KDL](https://kdl.dev) documents parsed with
 [`kdl-tree`](https://crates.io/crates/kdl-tree).
@@ -32,3 +34,13 @@ API docs: [docs.rs/kdl-span](https://docs.rs/kdl-span).
 ## License
 
 Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-kit/blob/main/LICENSE).
+
+[version-badge]: https://img.shields.io/crates/v/kdl-span.svg
+[downloads-badge]: https://img.shields.io/crates/d/kdl-span.svg
+[crate]: https://crates.io/crates/kdl-span
+[docs-badge]: https://docs.rs/kdl-span/badge.svg
+[docs]: https://docs.rs/kdl-span
+[librs-badge]: https://img.shields.io/badge/lib.rs-kdl--span-purple.svg
+[librs]: https://lib.rs/crates/kdl-span
+[license-badge]: https://img.shields.io/badge/license-Apache--2.0-blue.svg
+[license]: https://github.com/talaagent/kdl-kit/blob/main/LICENSE
