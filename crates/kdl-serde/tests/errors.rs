@@ -1,9 +1,12 @@
 //! Snapshots of rendered error diagnostics.
 
 #![cfg(feature = "miette")]
-#![allow(clippy::unwrap_used, dead_code)]
+#![allow(clippy::unwrap_used, clippy::items_after_statements, dead_code)]
 
-use std::collections::BTreeMap;
+extern crate alloc;
+
+use alloc::collections::BTreeMap;
+use core::fmt::Write as _;
 
 use kdl_serde::ErrorKind;
 use miette::{GraphicalReportHandler, GraphicalTheme};
@@ -197,7 +200,7 @@ fn syntax_error_kinds() {
         };
         let e = fail::<BTreeMap<String, String>>(src);
         assert_eq!(e.kind(), ErrorKind::Parse);
-        out += &format!("{}\n{}\n", p.kind().code(), render(&e));
+        writeln!(out, "{}\n{}", p.kind().code(), render(&e)).unwrap();
     }
     insta::assert_snapshot!(out);
 }

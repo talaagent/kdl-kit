@@ -3,7 +3,10 @@
 
 #![allow(clippy::unwrap_used, missing_docs)]
 
-use std::collections::BTreeMap;
+extern crate alloc;
+
+use alloc::collections::BTreeMap;
+use core::fmt::Write as _;
 use std::sync::LazyLock;
 
 use divan::{Bencher, black_box};
@@ -60,7 +63,7 @@ fn config(orgs: usize) -> Config {
                 display_name: format!("Organization number {o}"),
                 description: "A fairly long description of the organization.\nIt spans lines.\n"
                     .into(),
-                founded: 1990 + (o % 30) as u16,
+                founded: 1990 + u16::try_from(o % 30).unwrap(),
                 plan: "team".into(),
                 member: (0..10)
                     .map(|m| Member {
@@ -77,8 +80,8 @@ fn config(orgs: usize) -> Config {
                             format!("site{s}"),
                             Site {
                                 region: format!("region-{s}"),
-                                replicas: s as u32 + 1,
-                                weight: 0.5 * s as f64,
+                                replicas: u32::try_from(s).unwrap() + 1,
+                                weight: 0.5 * f64::from(s),
                                 domains: vec![format!("s{s}.org{o}.example")],
                                 env: BTreeMap::from([
                                     ("LOG_LEVEL".into(), "info".into()),
@@ -102,8 +105,13 @@ static BIG: LazyLock<(Config, String)> = LazyLock::new(|| {
 });
 
 /// 20 000 small top-level nodes.
-static SMALL: LazyLock<String> =
-    LazyLock::new(|| (0..20_000).map(|i| format!("key{i} {i}\n")).collect());
+static SMALL: LazyLock<String> = LazyLock::new(|| {
+    let mut s = String::new();
+    for i in 0..20_000 {
+        writeln!(s, "key{i} {i}").unwrap();
+    }
+    s
+});
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Nest {

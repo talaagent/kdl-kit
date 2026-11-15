@@ -21,7 +21,9 @@
 //! document's [`SourceMap`]; with the `miette` feature they are also
 //! `miette::Diagnostic`s.
 
-use std::sync::Arc;
+extern crate alloc;
+
+use alloc::sync::Arc;
 
 #[cfg(doctest)]
 #[doc = include_str!("../README.md")]
@@ -387,7 +389,7 @@ mod tests {
         let (doc, _) = load("a { b { c }; d }\ne");
         let mut seen = Vec::new();
         walk(&doc, |path, n| {
-            seen.push(format!("{}{}", path.len(), n.name().value()))
+            seen.push(format!("{}{}", path.len(), n.name().value()));
         });
         assert_eq!(seen, ["0a", "1b", "2c", "1d", "0e"]);
     }

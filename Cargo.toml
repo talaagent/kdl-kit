@@ -39,7 +39,18 @@ unsafe_code = "forbid"
 missing_docs = "warn"
 
 [workspace.lints.clippy]
-all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+complexity = { level = "deny", priority = -1 }
+must_use_candidate = "allow"
+module_name_repetitions = "allow"
+struct_excessive_bools = "allow"
+needless_pass_by_value = "allow"
+unnecessary_wraps = "allow"
+# Error types and codes are documented on the error enums and in docs/errors.md.
+missing_errors_doc = "allow"
 unwrap_used = "deny"
 clone_on_ref_ptr = "deny"
-std_instead_of_core = "warn"
+std_instead_of_alloc = "deny"
+std_instead_of_core = "deny"
+cognitive_complexity = "deny"
+too_many_lines = "deny"

@@ -66,9 +66,11 @@ fn terminator() -> impl Strategy<Value = &'static str> {
 
 fn node(depth: u32) -> BoxedStrategy<String> {
     let entries = prop::collection::vec((ws(), entry()), 0..4).prop_map(|es| {
-        es.into_iter()
-            .map(|(w, e)| format!("{w}{e}"))
-            .collect::<String>()
+        es.into_iter().fold(String::new(), |mut s, (w, e)| {
+            s.push_str(w);
+            s.push_str(&e);
+            s
+        })
     });
     let children: BoxedStrategy<String> = if depth == 0 {
         Just(String::new()).boxed()

@@ -1,8 +1,13 @@
 //! One test (or a few) per mapping rule, reading and writing.
 
 #![allow(clippy::unwrap_used, clippy::std_instead_of_core)]
+// The float values here are exact by construction.
+#![allow(clippy::float_cmp, clippy::items_after_statements)]
 
-use std::collections::{BTreeMap, HashMap};
+extern crate alloc;
+
+use alloc::collections::BTreeMap;
+use std::collections::HashMap;
 
 use kdl_serde::{Annotated, MapStyle, Options, RawDocument, RawNode, SeqStyle};
 use serde::{Deserialize, Serialize};
@@ -10,7 +15,7 @@ use serde::{Deserialize, Serialize};
 fn de<T: serde::de::DeserializeOwned>(s: &str) -> T {
     match kdl_serde::from_str(s) {
         Ok(v) => v,
-        Err(e) => panic!("{:?}", e),
+        Err(e) => panic!("{e:?}"),
     }
 }
 

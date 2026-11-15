@@ -89,12 +89,14 @@ impl Default for ParseOptions {
 
 impl ParseOptions {
     /// Offsets start at `base` instead of 0.
+    #[must_use]
     pub fn base(mut self, base: usize) -> Self {
         self.base = base;
         self
     }
 
     /// Accept at most `depth` nested children blocks.
+    #[must_use]
     pub fn max_depth(mut self, depth: usize) -> Self {
         self.max_depth = depth;
         self

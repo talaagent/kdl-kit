@@ -44,7 +44,7 @@ impl<'a> NodeRef<'a> {
         self.node
             .children()
             .into_iter()
-            .flat_map(|d| d.nodes())
+            .flat_map(kdl_tree::Document::nodes)
             .map(move |node| NodeRef { node })
     }
 
@@ -80,7 +80,7 @@ impl<'a> ValueDe<'a> {
         if self.ty_used {
             return None;
         }
-        self.entry.ty().map(|t| t.value())
+        self.entry.ty().map(kdl_tree::Ident::value)
     }
 
     fn wrap<T>(&self, r: Result<T>) -> Result<T> {
@@ -218,7 +218,9 @@ impl<'a> Deserializer<'a> for ValueDe<'a> {
         visitor: V,
     ) -> Result<V::Value> {
         if name == magic::ANNOTATED {
-            let ty = self.ty().map(|t| (t, self.entry.ty().map(|t| t.span())));
+            let ty = self
+                .ty()
+                .map(|t| (t, self.entry.ty().map(kdl_tree::Ident::span)));
             let value = ValueDe {
                 ty_used: true,
                 ..self
@@ -1011,7 +1013,7 @@ impl<'a> Fields<'a> {
             let key = prop.name().map_or("", |k| k.value());
             if props[i + 1..]
                 .iter()
-                .any(|p| p.name().map(|k| k.value()) == Some(key))
+                .any(|p| p.name().map(kdl_tree::Ident::value) == Some(key))
             {
                 continue;
             }
@@ -1032,7 +1034,10 @@ impl<'a> Fields<'a> {
 
         let children: Vec<NodeRef<'a>> = n.children().collect();
         Self::push_children(&mut out, &children, fields, &prop_names)?;
-        let span = n.node.children().map_or(n.name_span(), |c| c.span());
+        let span = n
+            .node
+            .children()
+            .map_or(n.name_span(), kdl_tree::Document::span);
         Self::push_rest(&mut out, children, fields, span);
         Ok(Self {
             entries: out.into_iter(),
@@ -1069,12 +1074,11 @@ impl<'a> Fields<'a> {
             if rest && !fields.contains(&name) {
                 continue;
             }
-            match index.get(name) {
-                Some(&i) => groups[i].1.push(*c),
-                None => {
-                    index.insert(name, groups.len());
-                    groups.push((name, vec![*c]));
-                }
+            if let Some(&i) = index.get(name) {
+                groups[i].1.push(*c);
+            } else {
+                index.insert(name, groups.len());
+                groups.push((name, vec![*c]));
             }
         }
         for (name, nodes) in groups {

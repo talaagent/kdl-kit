@@ -2,6 +2,8 @@
 
 #![allow(clippy::unwrap_used)]
 
+extern crate alloc;
+
 use kdl_tree::{Document, ErrorKind, ParseOptions, Span};
 
 fn text(src: &str, s: Span) -> &str {
@@ -25,7 +27,7 @@ fn spans_cover_every_part() {
     assert_eq!(text(src, n.entries()[2].value_span()), "#true");
     let children = n.children().unwrap();
     assert_eq!(text(src, children.span()), "{\n  c 1; d\n}");
-    assert_eq!(text(src, n.span()), &src[5..src.find("}").unwrap() + 1]);
+    assert_eq!(text(src, n.span()), &src[5..=src.find('}').unwrap()]);
     assert_eq!(text(src, children.nodes()[0].span()), "c 1");
     assert_eq!(text(src, doc.nodes()[1].span()), "last");
 }
@@ -50,7 +52,7 @@ fn borrows_plain_strings() {
         .map(|e| {
             matches!(
                 e.value(),
-                kdl_tree::Value::String(std::borrow::Cow::Borrowed(_))
+                kdl_tree::Value::String(alloc::borrow::Cow::Borrowed(_))
             )
         })
         .collect();
@@ -117,16 +119,16 @@ fn deep_nesting_is_an_error_not_a_crash() {
 
 #[test]
 fn into_owned_keeps_everything() {
-    let src = String::from("(t)a \"x\" k=1 { b }");
-    let doc = Document::parse(&src).unwrap();
-    let owned: Document<'static> = doc.clone().into_owned();
-    drop(src);
-    assert_eq!(owned, doc_eq_helper());
     fn doc_eq_helper() -> Document<'static> {
         Document::parse("(t)a \"x\" k=1 { b }")
             .unwrap()
             .into_owned()
     }
+    let src = String::from("(t)a \"x\" k=1 { b }");
+    let doc = Document::parse(&src).unwrap();
+    let owned: Document<'static> = doc.clone().into_owned();
+    drop(src);
+    assert_eq!(owned, doc_eq_helper());
 }
 
 #[test]

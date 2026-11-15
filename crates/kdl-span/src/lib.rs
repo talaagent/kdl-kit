@@ -25,7 +25,10 @@
 //! assert_eq!(map.file(a).name(), "a.kdl");
 //! ```
 
-use std::sync::{Arc, OnceLock};
+extern crate alloc;
+
+use alloc::sync::Arc;
+use std::sync::OnceLock;
 
 #[cfg(doctest)]
 #[doc = include_str!("../README.md")]

@@ -72,8 +72,13 @@ static SETTINGS: LazyLock<String> = LazyLock::new(|| {
 });
 
 /// 20 000 small top-level nodes.
-static SIBLINGS: LazyLock<String> =
-    LazyLock::new(|| (0..20_000).map(|i| format!("key{i} {i}\n")).collect());
+static SIBLINGS: LazyLock<String> = LazyLock::new(|| {
+    let mut s = String::new();
+    for i in 0..20_000 {
+        writeln!(s, "key{i} {i}").unwrap();
+    }
+    s
+});
 
 /// 100 levels of nesting, two nodes per level.
 static DEEP: LazyLock<String> = LazyLock::new(|| {

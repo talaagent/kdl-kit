@@ -3,7 +3,9 @@
 
 #![allow(dead_code)]
 
-use std::collections::BTreeMap;
+extern crate alloc;
+
+use alloc::collections::BTreeMap;
 
 use kdl_tree::{Document, Node, Value};
 

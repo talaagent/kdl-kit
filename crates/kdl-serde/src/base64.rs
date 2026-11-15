@@ -37,7 +37,7 @@ pub(crate) fn decode(s: &str) -> Option<Vec<u8>> {
         let mut n = 0u32;
         for (i, c) in chunk.iter().enumerate() {
             let v = ALPHABET.iter().position(|a| a == c)?;
-            n |= (v as u32) << (18 - 6 * i);
+            n |= u32::try_from(v).ok()? << (18 - 6 * i);
         }
         let bytes = n.to_be_bytes();
         out.extend_from_slice(&bytes[1..chunk.len()]);
@@ -50,6 +50,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn round_trips() {
         for len in 0..10 {
             let bytes: Vec<u8> = (0..len).map(|i| (i * 37 + 200) as u8).collect();

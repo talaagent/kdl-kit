@@ -331,7 +331,7 @@ impl fmt::Debug for Error {
         if let Some(loc) = self.location() {
             d.field("at", &loc);
         }
-        d.finish()
+        d.finish_non_exhaustive()
     }
 }
 

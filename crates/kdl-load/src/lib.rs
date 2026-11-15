@@ -28,8 +28,10 @@
 //! # }
 //! ```
 
+extern crate alloc;
+
+use alloc::sync::Arc;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 #[cfg(doctest)]
 #[doc = include_str!("../README.md")]

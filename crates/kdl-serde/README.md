@@ -285,7 +285,7 @@ the same text.
 
 [knuffel] and [facet-kdl] map KDL through their own derive macros with
 per-field attributes (argument, property, child, children); kdl-rs 6.7's
-built-in serde support, serde-kdl2 and serde_kdl (KDL v1) treat a document
+built-in serde support, serde-kdl2 and `serde_kdl` (KDL v1) treat a document
 like JSON (single-argument nodes are scalars, multi-argument nodes are
 sequences, repeated names are sequences). kdl-serde stays with plain serde
 derives but adds field-name conventions so the same struct can read

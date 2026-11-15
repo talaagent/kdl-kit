@@ -3,7 +3,9 @@
 
 #![allow(clippy::unwrap_used)]
 
-use std::collections::BTreeSet;
+extern crate alloc;
+
+use alloc::collections::BTreeSet;
 use std::path::Path;
 
 fn rust_files(dir: &Path, out: &mut Vec<std::path::PathBuf>) {

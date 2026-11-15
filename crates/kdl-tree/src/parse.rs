@@ -153,6 +153,8 @@ impl<'a> Parser<'a> {
     /// An error pointing at the character at `pos` (empty at the end).
     #[cold]
     #[inline(never)]
+    // Boxed on purpose: see `PResult`.
+    #[allow(clippy::unnecessary_box_returns)]
     fn error_at(
         &self,
         kind: ErrorKind,
@@ -606,29 +608,7 @@ impl<'a> Parser<'a> {
             _ => 10,
         };
         let range = |p: &Self| p.error_at(ErrorKind::InvalidNumber, start, "integer out of range");
-        let value = if radix != 10 {
-            self.pos += 2;
-            let digits_start = self.pos;
-            let is_digit = |b: u8| match radix {
-                16 => b.is_ascii_hexdigit(),
-                8 => (b'0'..=b'7').contains(&b),
-                _ => b == b'0' || b == b'1',
-            };
-            if !self.peek().is_some_and(is_digit) {
-                return Err(Box::new(Error::new(
-                    ErrorKind::InvalidNumber,
-                    self.span(start, self.pos),
-                    "expected a digit after the radix prefix",
-                )));
-            }
-            while self.peek().is_some_and(|b| is_digit(b) || b == b'_') {
-                self.pos += 1;
-            }
-            let digits = strip_underscores(&self.src[digits_start..self.pos]);
-            let negative = self.b[start] == b'-';
-            let magnitude = u128::from_str_radix(&digits, radix).map_err(|_| range(self))?;
-            Value::Integer(to_i128(magnitude, negative).ok_or_else(|| range(self))?)
-        } else {
+        let value = if radix == 10 {
             self.digits()?;
             let mut is_float = false;
             if self.peek() == Some(b'.') && self.peek_at(1).is_some_and(|b| b.is_ascii_digit()) {
@@ -659,6 +639,28 @@ impl<'a> Parser<'a> {
             } else {
                 Value::Integer(text.parse::<i128>().map_err(|_| range(self))?)
             }
+        } else {
+            self.pos += 2;
+            let digits_start = self.pos;
+            let is_digit = |b: u8| match radix {
+                16 => b.is_ascii_hexdigit(),
+                8 => (b'0'..=b'7').contains(&b),
+                _ => b == b'0' || b == b'1',
+            };
+            if !self.peek().is_some_and(is_digit) {
+                return Err(Box::new(Error::new(
+                    ErrorKind::InvalidNumber,
+                    self.span(start, self.pos),
+                    "expected a digit after the radix prefix",
+                )));
+            }
+            while self.peek().is_some_and(|b| is_digit(b) || b == b'_') {
+                self.pos += 1;
+            }
+            let digits = strip_underscores(&self.src[digits_start..self.pos]);
+            let negative = self.b[start] == b'-';
+            let magnitude = u128::from_str_radix(&digits, radix).map_err(|_| range(self))?;
+            Value::Integer(to_i128(magnitude, negative).ok_or_else(|| range(self))?)
         };
         if self.peek_char().is_some_and(is_ident_char) {
             return self.err(ErrorKind::InvalidNumber, "invalid character in number");
@@ -749,9 +751,7 @@ impl<'a> Parser<'a> {
         // by a digit.
         let after_sign = usize::from(matches!(bytes[0], b'+' | b'-'));
         if bytes.get(after_sign) == Some(&b'.')
-            && bytes
-                .get(after_sign + 1)
-                .is_some_and(|b| b.is_ascii_digit())
+            && bytes.get(after_sign + 1).is_some_and(u8::is_ascii_digit)
         {
             return Err(self.error_at(
                 ErrorKind::InvalidIdentifier,
@@ -963,6 +963,8 @@ fn skip_plain_ascii(b: &[u8], mut pos: usize) -> usize {
     const LO: u64 = 0x0101_0101_0101_0101;
     const HI: u64 = 0x8080_8080_8080_8080;
     // Non-zero iff some byte of `v` is zero.
+    // The scanning hot loop; forced inlining kept from club-kdl.
+    #[allow(clippy::inline_always)]
     #[inline(always)]
     fn has_zero(v: u64) -> u64 {
         v.wrapping_sub(LO) & !v & HI
@@ -971,8 +973,8 @@ fn skip_plain_ascii(b: &[u8], mut pos: usize) -> usize {
         let mut bytes = [0u8; 8];
         bytes.copy_from_slice(chunk);
         let x = u64::from_le_bytes(bytes);
-        let special = has_zero(x ^ (LO * b'"' as u64))
-            | has_zero(x ^ (LO * b'\\' as u64))
+        let special = has_zero(x ^ (LO * u64::from(b'"')))
+            | has_zero(x ^ (LO * u64::from(b'\\')))
             | has_zero(x ^ (LO * 0x7F))
             // some byte < 0x20
             | (x.wrapping_sub(LO * 0x20) & !x & HI)

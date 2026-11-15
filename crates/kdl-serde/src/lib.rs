@@ -9,7 +9,7 @@ mod magic;
 mod ser;
 mod types;
 
-use std::collections::BTreeMap;
+use alloc::collections::BTreeMap;
 use std::io::Read;
 use std::path::Path;
 
