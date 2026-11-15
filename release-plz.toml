@@ -1,0 +1,55 @@
+# Runs from .github/workflows/release-plz.yml while the repository is public.
+# All crates share one version, one changelog (CHANGELOG.md) and one
+# `v<version>` tag and GitHub release, owned by kdl-serde.
+[workspace]
+changelog_update = false
+git_tag_enable = false
+git_release_enable = false
+publish = true
+semver_check = true
+pr_draft = false
+# Publish only when the pushed commit is a merged release-plz PR, not on any
+# version bump.
+release_always = false
+
+[[package]]
+name = "kdl-serde"
+changelog_update = true
+changelog_path = "CHANGELOG.md"
+changelog_include = [
+  "kdl-tree",
+  "kdl-span",
+  "kdl-load",
+  "kdl-nodes",
+  "kdl-pretty",
+  "kdl-pretty-cli",
+]
+git_tag_enable = true
+git_tag_name = "v{{ version }}"
+git_release_enable = true
+git_release_name = "v{{ version }}"
+version_group = "kdl-kit"
+
+[[package]]
+name = "kdl-tree"
+version_group = "kdl-kit"
+
+[[package]]
+name = "kdl-span"
+version_group = "kdl-kit"
+
+[[package]]
+name = "kdl-load"
+version_group = "kdl-kit"
+
+[[package]]
+name = "kdl-nodes"
+version_group = "kdl-kit"
+
+[[package]]
+name = "kdl-pretty"
+version_group = "kdl-kit"
+
+[[package]]
+name = "kdl-pretty-cli"
+version_group = "kdl-kit"
