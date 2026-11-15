@@ -30,8 +30,13 @@ workspace = true
 [dev-dependencies]
 # The tests compare against `kdl` through the conversions.
 kdl-tree = { path = ".", features = ["kdl"] }
+divan = "0.1"
 kdl.workspace = true
 proptest.workspace = true
+
+[[bench]]
+name = "parse"
+harness = false
 
 [package.metadata.docs.rs]
 all-features = true

@@ -17,6 +17,10 @@ values are dropped. Use the `kdl` crate (or `kdl-pretty`) to edit or format.
 Nesting is capped (`ParseOptions::max_depth`, 256 by default), so deep
 input returns an error instead of overflowing the stack.
 
+It parses 19× to 47× faster than `kdl`, depending on the input
+(`benches/parse.rs`, results in
+[BENCHMARKS.md](https://github.com/talaagent/kdl-kit/blob/main/BENCHMARKS.md)).
+
 ## Conformance
 
 It passes all 338 cases of the official

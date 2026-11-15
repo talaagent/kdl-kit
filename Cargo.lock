@@ -345,6 +345,7 @@ dependencies = [
 name = "kdl-tree"
 version = "0.1.0"
 dependencies = [
+ "divan",
  "kdl",
  "kdl-tree",
  "proptest",

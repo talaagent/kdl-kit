@@ -53,8 +53,8 @@ file, line and column. With the `miette` feature they render as
 | [`kdl-pretty`](crates/kdl-pretty) | Deterministic formatter that keeps comments |
 | [`kdl-pretty-cli`](crates/kdl-pretty-cli) | The `kdl-pretty` command (`--check`, treefmt) |
 
-Reading goes through `kdl-tree`, which parses large documents about 40×
-faster than the [`kdl`](https://docs.rs/kdl) crate (see
+Reading goes through `kdl-tree`, which parses 19× to 47× faster than the
+[`kdl`](https://docs.rs/kdl) crate, depending on the input (see
 [BENCHMARKS.md](BENCHMARKS.md)). Writing and formatting use `kdl` v6. Only
 `kdl-serde` depends on serde. Every error code is listed in
 [docs/errors.md](docs/errors.md). Used by korek.
