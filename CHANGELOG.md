@@ -32,3 +32,6 @@ First release. All crates share one version.
   spans and help.
 - `miette` feature on kdl-span, kdl-load, kdl-nodes and kdl-serde for
   `miette::Diagnostic` impls.
+- MSRV per crate: Rust 1.85 for kdl-tree (1.95 with its `kdl` feature),
+  kdl-span, kdl-load and kdl-nodes; 1.95 for kdl-pretty, kdl-pretty-cli and
+  kdl-serde.

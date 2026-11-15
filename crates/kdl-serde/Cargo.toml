@@ -3,7 +3,8 @@ name = "kdl-serde"
 description = "Serde Serializer and Deserializer for KDL v2 documents"
 version.workspace = true
 edition.workspace = true
-rust-version.workspace = true
+# Depends on the `kdl` crate, which needs 1.95.
+rust-version = "1.95"
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true

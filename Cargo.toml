@@ -5,9 +5,11 @@ members = ["crates/*"]
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-# The MSRV of every crate (CI's `msrv` job reads it from here). kdl 6.6+
-# needs 1.95 (6.5 fails kdl-pretty's tests); let chains alone need 1.88.
-rust-version = "1.95"
+# The default MSRV, edition 2024's floor: kdl-tree (without its `kdl`
+# feature), kdl-span, kdl-load and kdl-nodes. The crates that depend on the
+# `kdl` crate override it with 1.95 (kdl 6.6+ needs it; 6.5 fails
+# kdl-pretty's tests). CI's `msrv` job tests each crate at its own value.
+rust-version = "1.85"
 license = "Apache-2.0"
 repository = "https://github.com/talaagent/kdl-kit"
 homepage = "https://github.com/talaagent/kdl-kit"

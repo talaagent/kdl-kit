@@ -12,7 +12,8 @@ mapping changes are in [AGENTS.md](AGENTS.md).
 
 ## Checks
 
-Rust 1.95 is the minimum. The Nix dev shell pins the toolchain CI uses and
+The minimum Rust is 1.85 for kdl-tree, kdl-span, kdl-load and kdl-nodes and
+1.95 for the rest (see the README). The Nix dev shell pins the toolchain CI uses and
 provides cargo-nextest, cargo-deny and cargo-insta:
 
 ```sh
@@ -25,8 +26,8 @@ nix develop -c cargo deny check
 ```
 
 CI also runs clippy and the tests without `--all-features`, each crate with
-`--no-default-features`, the pinned official KDL test suite, a build and
-test on the MSRV, and `cargo publish --workspace --dry-run`. AGENTS.md lists
+`--no-default-features`, the pinned official KDL test suite, each crate built
+and tested on its own MSRV, and `cargo publish --workspace --dry-run`. AGENTS.md lists
 the commands.
 
 ## Releases

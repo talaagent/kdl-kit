@@ -35,8 +35,13 @@ KDL_SPEC_DIR=/path/to/kdl nix develop -c cargo test -p kdl-tree --test spec -- -
 
 Every change must pass fmt, clippy (with and without `--all-features`), the
 tests (default features, `--all-features`, and each crate with
-`--no-default-features`) and the doc build. The MSRV is the workspace
-`rust-version` (1.95); CI builds and tests on it.
+`--no-default-features`) and the doc build. Each crate's MSRV is its
+`rust-version`: the workspace default is 1.85 (kdl-tree, kdl-span, kdl-load,
+kdl-nodes), and the crates that depend on `kdl` (kdl-pretty, kdl-pretty-cli,
+kdl-serde) override it with 1.95. Keep the 1.85 crates free of `kdl` and of
+newer language features such as let chains. CI's `msrv` job builds and tests
+each crate on its own value (kdl-tree is check-only there: its tests use
+`kdl`).
 
 ## Layout
 

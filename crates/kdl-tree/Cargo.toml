@@ -21,7 +21,8 @@ thiserror.workspace = true
 kdl = { workspace = true, optional = true }
 
 [features]
-# Conversions to and from `kdl::KdlDocument`.
+# Conversions to and from `kdl::KdlDocument`. MSRV 1.85; 1.95 with this
+# feature (the `kdl` crate needs it).
 kdl = ["dep:kdl"]
 
 [lints]

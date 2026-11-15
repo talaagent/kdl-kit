@@ -1,6 +1,6 @@
 # kdl-kit
 
-[![CI][ci-badge]][ci] [![crates.io][version-badge]][crate] [![downloads][downloads-badge]][crate] [![docs.rs][docs-badge]][docs] [![lib.rs][librs-badge]][librs] [![Rust 1.95+][msrv-badge]][msrv] [![License: Apache-2.0][license-badge]][license]
+[![CI][ci-badge]][ci] [![crates.io][version-badge]][crate] [![downloads][downloads-badge]][crate] [![docs.rs][docs-badge]][docs] [![lib.rs][librs-badge]][librs] [![Rust 1.85+][msrv-badge]][msrv] [![License: Apache-2.0][license-badge]][license]
 
 KDL v2 for Rust: a fast span-carrying parser, serde support, and a
 deterministic formatter. It also loads files and whole directories as one
@@ -71,7 +71,15 @@ Reading goes through `kdl-tree`, which parses 19× to 47× faster than the
 
 ## MSRV
 
-Rust 1.95, checked in CI. Raising it is a minor-version change.
+Each crate declares its own `rust-version`, and CI builds and tests each
+crate on it.
+
+| Crates | MSRV |
+| --- | --- |
+| kdl-tree, kdl-span, kdl-load, kdl-nodes | 1.85 (kdl-tree's `kdl` feature: 1.95) |
+| kdl-serde, kdl-pretty, kdl-pretty-cli | 1.95, because the `kdl` crate needs it |
+
+Raising an MSRV is a minor-version change.
 
 ## Contributing
 
@@ -91,7 +99,7 @@ Licensed under the [Apache License, Version 2.0](LICENSE). The KDL parser in
 [docs]: https://docs.rs/kdl-serde
 [librs-badge]: https://img.shields.io/badge/lib.rs-kdl--serde-purple.svg
 [librs]: https://lib.rs/crates/kdl-serde
-[msrv-badge]: https://img.shields.io/badge/rust-1.95%2B-orange.svg
-[msrv]: https://github.com/talaagent/kdl-kit/blob/main/Cargo.toml
+[msrv-badge]: https://img.shields.io/badge/rust-1.85%2B-orange.svg
+[msrv]: https://github.com/talaagent/kdl-kit#msrv
 [license-badge]: https://img.shields.io/badge/license-Apache--2.0-blue.svg
 [license]: https://github.com/talaagent/kdl-kit/blob/main/LICENSE

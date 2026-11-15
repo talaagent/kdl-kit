@@ -19,6 +19,8 @@ values are dropped. Use the `kdl` crate (or `kdl-pretty`) to edit or format.
 Nesting is capped (`ParseOptions::max_depth`, 256 by default), so deep
 input returns an error instead of overflowing the stack.
 
+MSRV: Rust 1.85; 1.95 with the `kdl` feature (the `kdl` crate needs it).
+
 It parses 19× to 47× faster than `kdl`, depending on the input
 (`benches/parse.rs`, results in
 [BENCHMARKS.md](https://github.com/talaagent/kdl-kit/blob/main/BENCHMARKS.md)).

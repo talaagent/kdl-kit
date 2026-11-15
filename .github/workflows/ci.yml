@@ -112,31 +112,54 @@ jobs:
           KDL_SPEC_DIR=$PWD/target/kdl-spec cargo test -p kdl-tree --test spec --locked -- --nocapture
 
   msrv:
-    name: MSRV
+    name: MSRV (per crate)
     runs-on: ubuntu-latest
+    env:
+      # Built but not tested at their MSRV: their dev-dependencies need a
+      # newer toolchain (kdl-tree's tests compare against the `kdl` crate,
+      # which needs 1.95).
+      CHECK_ONLY: kdl-tree
     steps:
       - uses: actions/checkout@v7
-      - name: Read rust-version from Cargo.toml
-        id: msrv
-        run: |
-          msrv=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])')
-          echo "MSRV: $msrv"
-          echo "version=$msrv" >> "$GITHUB_OUTPUT"
-      # Re-resolve Cargo.lock with a current cargo, whose rust-version-aware
-      # resolver (resolver 3) picks dependency versions that still build on
-      # the MSRV.
       # dtolnay/rust-toolchain master @ 2026-10-16; installs env.RUST_TOOLCHAIN (1.98.1)
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
+      # Re-resolve Cargo.lock with a current cargo, whose rust-version-aware
+      # resolver (resolver 3) picks dependency versions that still build on
+      # the lowest MSRV.
       - run: cargo generate-lockfile
-      # dtolnay/rust-toolchain master @ 2026-10-16; installs the MSRV (rust-version)
-      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
-        with:
-          toolchain: ${{ steps.msrv.outputs.version }}
+      - name: Read each crate's rust-version
+        run: |
+          cargo metadata --no-deps --format-version 1 --locked | python3 -c '
+          import json, sys
+          for p in json.load(sys.stdin)["packages"]:
+              print(p["name"], p["rust_version"], " ".join(p["features"]), sep="\t")
+          ' > "$RUNNER_TEMP/msrv.tsv"
+          cat "$RUNNER_TEMP/msrv.tsv"
+      - name: Install the MSRV toolchains
+        run: |
+          cut -f2 "$RUNNER_TEMP/msrv.tsv" | sort -u | while read -r v; do
+            rustup toolchain install "$v" --profile minimal --no-self-update
+          done
       - uses: Swatinem/rust-cache@v2
-      - run: cargo +${{ steps.msrv.outputs.version }} check --workspace --all-targets --all-features --locked
-      - run: cargo +${{ steps.msrv.outputs.version }} test --workspace --all-features --locked
+      - name: Build and test each crate at its rust-version
+        run: |
+          set -euo pipefail
+          while IFS=$'\t' read -r name version features; do
+            echo "::group::$name on $version"
+            cargo "+$version" check -p "$name" --locked
+            if [[ " $CHECK_ONLY " == *" $name "* ]]; then
+              echo "$name: check only (dev-dependencies need a newer toolchain)"
+            else
+              cargo "+$version" test -p "$name" --locked
+              cargo "+$version" test -p "$name" --no-default-features --locked
+              if [[ " $features " == *" miette "* ]]; then
+                cargo "+$version" test -p "$name" --features miette --locked
+              fi
+            fi
+            echo "::endgroup::"
+          done < "$RUNNER_TEMP/msrv.tsv"
 
   doc:
     name: docs
