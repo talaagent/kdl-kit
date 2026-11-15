@@ -228,11 +228,11 @@ impl Error {
 
     /// Rewords an unknown-field error raised for a property key.
     pub(crate) fn for_property(mut self) -> Self {
-        if self.inner.kind == ErrorKind::UnknownField {
-            if let Some(rest) = self.inner.message.strip_prefix("unknown field") {
-                self.inner.message = format!("unknown property{rest}");
-                self.inner.label = Some("unknown property".to_owned());
-            }
+        if self.inner.kind == ErrorKind::UnknownField
+            && let Some(rest) = self.inner.message.strip_prefix("unknown field")
+        {
+            self.inner.message = format!("unknown property{rest}");
+            self.inner.label = Some("unknown property".to_owned());
         }
         self
     }

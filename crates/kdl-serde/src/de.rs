@@ -451,12 +451,12 @@ impl<'a> Deserializer<'a> for NodeDe<'a> {
     }
 
     fn deserialize_option<V: Visitor<'a>>(self, visitor: V) -> Result<V::Value> {
-        if self.args_only() && self.arg_count() == 1 {
-            if let Some(arg) = self.args().next() {
-                if *arg.value() == Value::Null {
-                    return self.wrap(visitor.visit_none());
-                }
-            }
+        if self.args_only()
+            && self.arg_count() == 1
+            && let Some(arg) = self.args().next()
+            && *arg.value() == Value::Null
+        {
+            return self.wrap(visitor.visit_none());
         }
         self.wrap(visitor.visit_some(self))
     }
@@ -1400,10 +1400,10 @@ impl<'a> Deserializer<'a> for ElemDe<'a, '_> {
         fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value> {
-        if name == magic::ANNOTATED {
-            if let Some(v) = self.by_args() {
-                return v.deserialize_struct(name, fields, visitor);
-            }
+        if name == magic::ANNOTATED
+            && let Some(v) = self.by_args()
+        {
+            return v.deserialize_struct(name, fields, visitor);
         }
         self.whole().deserialize_struct(name, fields, visitor)
     }
