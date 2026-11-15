@@ -2,7 +2,7 @@
 source: crates/kdl-serde/tests/errors.rs
 expression: render(&e)
 ---
-kdl_serde::unknown_field (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_serde-unknown_field)
+kdl_serde::unknown_field (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_serde-unknown_field)
 
   × unknown field `prot`, expected one of `host`, `port`
    ╭─[config.kdl:2:1]

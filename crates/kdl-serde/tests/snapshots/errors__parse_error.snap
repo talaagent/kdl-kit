@@ -2,7 +2,7 @@
 source: crates/kdl-serde/tests/errors.rs
 expression: render(&e)
 ---
-kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_load-parse)
+kdl_load::parse (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_load-parse)
 
   × unexpected newline in a single-line string
    ╭─[config.kdl:1:6]

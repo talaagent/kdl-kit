@@ -9,8 +9,8 @@ edition = "2024"
 # needs 1.95 (6.5 fails kdl-pretty's tests); let chains alone need 1.88.
 rust-version = "1.95"
 license = "Apache-2.0"
-repository = "https://github.com/talaagent/kdl-serde"
-homepage = "https://github.com/talaagent/kdl-serde"
+repository = "https://github.com/talaagent/kdl-kit"
+homepage = "https://github.com/talaagent/kdl-kit"
 authors = ["Ian Macalinao <github@igm.pub>"]
 
 [workspace.dependencies]

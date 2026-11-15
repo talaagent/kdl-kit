@@ -1,9 +1,9 @@
-# kdl-serde
+# kdl-kit
 
-Rust libraries for [KDL v2](https://kdl.dev) documents: serde support with
-KDL-shaped conventions, a fast parser that keeps a span on every part of the
-document, loading of files and directories with a source map, and a
-deterministic, comment-preserving formatter.
+KDL v2 for Rust: a fast span-carrying parser, serde support, and a
+deterministic formatter. It also loads files and whole directories as one
+document with a source map, so errors point at the right file, line and
+column.
 
 ```toml
 [dependencies]

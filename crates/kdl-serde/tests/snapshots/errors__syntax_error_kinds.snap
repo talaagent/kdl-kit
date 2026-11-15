@@ -3,7 +3,7 @@ source: crates/kdl-serde/tests/errors.rs
 expression: out
 ---
 kdl_tree::unexpected
-kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_load-parse)
+kdl_load::parse (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_load-parse)
 
   × expected whitespace before entry
    ╭─[config.kdl:1:9]
@@ -13,7 +13,7 @@ kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md
    ╰────
 
 kdl_tree::unterminated
-kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_load-parse)
+kdl_load::parse (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_load-parse)
 
   × unterminated string
    ╭─[config.kdl:1:6]
@@ -23,7 +23,7 @@ kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md
    ╰────
 
 kdl_tree::disallowed_char
-kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_load-parse)
+kdl_load::parse (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_load-parse)
 
   × disallowed character U+0007
    ╭─[config.kdl:1:8]
@@ -33,7 +33,7 @@ kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md
    ╰────
 
 kdl_tree::invalid_number
-kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_load-parse)
+kdl_load::parse (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_load-parse)
 
   × expected a digit after the radix prefix
    ╭─[config.kdl:1:6]
@@ -43,7 +43,7 @@ kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md
    ╰────
 
 kdl_tree::invalid_identifier
-kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_load-parse)
+kdl_load::parse (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_load-parse)
 
   × bare `true` is not a value
    ╭─[config.kdl:1:9]
@@ -54,7 +54,7 @@ kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md
   help: write a keyword with `#` (`#true`, `#null`), or quote it as a string
 
 kdl_tree::invalid_keyword
-kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_load-parse)
+kdl_load::parse (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_load-parse)
 
   × unknown keyword
    ╭─[config.kdl:1:9]
@@ -65,7 +65,7 @@ kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md
   help: the keywords are #true, #false, #null, #inf, #-inf and #nan
 
 kdl_tree::invalid_string
-kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_load-parse)
+kdl_load::parse (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_load-parse)
 
   × a multi-line string line does not start with the closing line's indentation
    ╭─[config.kdl:2:1]
@@ -77,7 +77,7 @@ kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md
    ╰────
 
 kdl_tree::invalid_escape
-kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_load-parse)
+kdl_load::parse (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_load-parse)
 
   × invalid escape `\U`
    ╭─[config.kdl:1:9]
@@ -87,7 +87,7 @@ kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md
    ╰────
 
 kdl_tree::children_order
-kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_load-parse)
+kdl_load::parse (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_load-parse)
 
   × entries must come before the children block
    ╭─[config.kdl:1:16]
@@ -97,7 +97,7 @@ kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md
    ╰────
 
 kdl_tree::too_deep
-kdl_load::parse (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_load-parse)
+kdl_load::parse (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_load-parse)
 
   × children nested more than 256 deep
      ╭─[config.kdl:257:3]

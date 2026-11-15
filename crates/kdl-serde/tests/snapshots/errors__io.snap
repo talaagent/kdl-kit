@@ -2,7 +2,7 @@
 source: crates/kdl-serde/tests/errors.rs
 expression: render(&e)
 ---
-kdl_load::io (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_load-io)
+kdl_load::io (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_load-io)
 
   × cannot read /nonexistent/kdl-serde/config.kdl
   ╰─▶ No such file or directory (os error 2)

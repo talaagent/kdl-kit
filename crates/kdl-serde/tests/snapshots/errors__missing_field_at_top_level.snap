@@ -2,7 +2,7 @@
 source: crates/kdl-serde/tests/errors.rs
 expression: render(&e)
 ---
-kdl_serde::missing_field (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_serde-missing_field)
+kdl_serde::missing_field (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_serde-missing_field)
 
   × missing field `server`
    ╭─[config.kdl:1:1]

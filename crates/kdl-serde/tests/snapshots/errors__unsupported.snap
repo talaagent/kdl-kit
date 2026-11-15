@@ -2,6 +2,6 @@
 source: crates/kdl-serde/tests/errors.rs
 expression: render(&e)
 ---
-kdl_serde::unsupported (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_serde-unsupported)
+kdl_serde::unsupported (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_serde-unsupported)
 
   × 340282366920938463463374607431768211455 is too large for a KDL integer

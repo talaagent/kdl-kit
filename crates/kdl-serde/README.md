@@ -231,14 +231,14 @@ into one `Vec`. Errors name the file they come from.
 ### Errors
 
 Every deserialization error has a stable code (`Error::code()`, listed in
-[docs/errors.md](https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md)), a message, optional help and
+[docs/errors.md](https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md)), a message, optional help and
 labeled spans (`Error::labels()`, as `kdl_span::Span { file, offset, len }`
 with `Error::source_file()` for the text and name), so callers can render
 it however they like; `Error::location()` gives `file:line:col`. With the
 `miette` feature it is a `miette::Diagnostic`:
 
 ```text
-kdl_serde::unknown_field (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_serde-unknown_field)
+kdl_serde::unknown_field (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_serde-unknown_field)
 
   × unknown property `rol`, expected `role`
    ╭─[config.kdl:3:27]
@@ -295,4 +295,4 @@ lists, maps and variants on read.
 
 ## License
 
-Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-serde/blob/main/LICENSE).
+Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-kit/blob/main/LICENSE).

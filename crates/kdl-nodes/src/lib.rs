@@ -188,7 +188,7 @@ impl miette::Diagnostic for Error {
 
     fn url<'a>(&'a self) -> Option<Box<dyn core::fmt::Display + 'a>> {
         Some(Box::new(format!(
-            "https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#{}",
+            "https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#{}",
             Error::code(self).replace("::", "-")
         )))
     }

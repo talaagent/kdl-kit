@@ -2,7 +2,7 @@
 source: crates/kdl-serde/tests/errors.rs
 expression: rendered
 ---
-kdl_serde::duplicate_node (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_serde-duplicate_node)
+kdl_serde::duplicate_node (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_serde-duplicate_node)
 
   × duplicate node `host`; it takes a single value
    ╭─[<dir>/b.kdl:1:1]

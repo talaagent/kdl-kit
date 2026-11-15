@@ -341,7 +341,7 @@ mod diagnostic {
     use core::fmt::Display;
     use miette::{Diagnostic, LabeledSpan, SourceCode};
 
-    const DOCS: &str = "https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md";
+    const DOCS: &str = "https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md";
 
     impl Diagnostic for Error {
         fn code<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {

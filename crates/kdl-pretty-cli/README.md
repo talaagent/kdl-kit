@@ -38,4 +38,4 @@ includes = ["*.kdl"]
 
 ## License
 
-Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-serde/blob/main/LICENSE).
+Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-kit/blob/main/LICENSE).

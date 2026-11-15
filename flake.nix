@@ -1,5 +1,5 @@
 {
-  description = "kdl-serde: serde for KDL v2 documents";
+  description = "kdl-kit: KDL v2 for Rust (parser, serde, formatter)";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 

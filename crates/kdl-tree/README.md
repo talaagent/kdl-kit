@@ -26,7 +26,7 @@ against the `kdl` crate. There are no known deviations from the KDL 2.0 spec.
 
 The parser is derived from
 [club-kdl](https://github.com/chronista-club/club-kdl) (MIT OR Apache-2.0,
-see [NOTICE](https://github.com/talaagent/kdl-serde/blob/main/NOTICE)) and
+see [NOTICE](https://github.com/talaagent/kdl-kit/blob/main/NOTICE)) and
 differs from it in one grammar detail. club-kdl requires whitespace before
 the `/-` of a slashdashed argument or property and rejects
 `node "a"/-1` and `node "a"/-k=1`. kdl-tree accepts them. The KDL 2.0
@@ -37,4 +37,4 @@ block (`node "a"/-{}`) needs no whitespace in either parser.
 
 ## License
 
-Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-serde/blob/main/LICENSE).
+Apache-2.0. See [LICENSE](https://github.com/talaagent/kdl-kit/blob/main/LICENSE).

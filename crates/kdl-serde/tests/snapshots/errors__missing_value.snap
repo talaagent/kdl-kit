@@ -2,7 +2,7 @@
 source: crates/kdl-serde/tests/errors.rs
 expression: render(&e)
 ---
-kdl_serde::invalid_type (https://github.com/talaagent/kdl-serde/blob/main/docs/errors.md#kdl_serde-invalid_type)
+kdl_serde::invalid_type (https://github.com/talaagent/kdl-kit/blob/main/docs/errors.md#kdl_serde-invalid_type)
 
   × expected a value for `host`, found none
    ╭─[config.kdl:1:1]
