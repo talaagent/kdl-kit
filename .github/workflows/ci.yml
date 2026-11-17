@@ -75,7 +75,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: thumbv7em-none-eabihf
       - uses: Swatinem/rust-cache@v2
+      - name: no_std crates on a bare-metal target
+        run: cargo build -p kdl-tree -p kdl-span -p kdl-nodes --no-default-features --target thumbv7em-none-eabihf --locked
       - name: each crate without default features
         run: |
           for p in kdl-tree kdl-span kdl-load kdl-nodes kdl-pretty kdl-pretty-cli kdl-serde; do

@@ -29,6 +29,8 @@ assert_eq!(map.file(a).name(), "a.kdl");
 With the `miette` feature, `SourceFile` is a `miette::SourceCode` and
 `Span` and `Label` convert to miette's span types.
 
+`#![no_std]`, needs only `alloc` (the `miette` feature uses std).
+
 API docs: [docs.rs/kdl-span](https://docs.rs/kdl-span).
 
 ## License

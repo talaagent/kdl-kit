@@ -13,8 +13,13 @@
 //! (identifiers, plain quoted strings, single-line raw strings) are borrowed
 //! from the source.
 
-use alloc::borrow::Cow;
-use alloc::string::String;
+use alloc::{
+    borrow::{Cow, ToOwned},
+    boxed::Box,
+    format,
+    string::String,
+    vec::Vec,
+};
 
 use crate::error::{Error, ErrorKind};
 use crate::{Document, Entry, Ident, Node, ParseOptions, Span, Value};

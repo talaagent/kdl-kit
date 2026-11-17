@@ -24,6 +24,8 @@ Errors carry stable codes (`kdl_nodes::duplicate_name`,
 `kdl_nodes::expected_identifier`) and labeled spans; with the `miette`
 feature they are `miette::Diagnostic`s.
 
+`#![no_std]`, needs only `alloc` (the `miette` feature uses std).
+
 API docs: [docs.rs/kdl-nodes](https://docs.rs/kdl-nodes).
 
 ## License
