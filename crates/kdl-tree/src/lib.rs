@@ -31,6 +31,8 @@
 //! The parser started as a copy of club-kdl's single-pass parser
 //! (MIT OR Apache-2.0); see `src/parse.rs` and the workspace NOTICE.
 
+#![no_std]
+
 extern crate alloc;
 
 #[cfg(doctest)]
@@ -42,7 +44,7 @@ mod compat;
 mod error;
 mod parse;
 
-use alloc::borrow::Cow;
+use alloc::{borrow::Cow, vec::Vec};
 
 pub use crate::error::{Error, ErrorKind};
 

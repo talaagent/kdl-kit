@@ -21,7 +21,9 @@ kdl = { version = "6.7", default-features = false, features = ["span"] }
 # Diagnostic impls and rendering are behind each crate's `miette` feature.
 miette = { version = "7.6", default-features = false }
 serde = "1"
-thiserror = "2"
+# No std: `thiserror` derives `core::error::Error`.
+thiserror = { version = "2", default-features = false }
+once_cell = { version = "1.21", default-features = false, features = ["race", "alloc"] }
 rayon = "1"
 anyhow = "1"
 pico-args = "0.5"

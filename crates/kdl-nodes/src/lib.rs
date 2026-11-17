@@ -21,7 +21,13 @@
 //! document's [`SourceMap`]; with the `miette` feature they are also
 //! `miette::Diagnostic`s.
 
+#![no_std]
+
 extern crate alloc;
+
+#[cfg(feature = "miette")]
+use alloc::boxed::Box;
+use alloc::{borrow::ToOwned, format, string::String, vec, vec::Vec};
 
 use alloc::sync::Arc;
 
@@ -291,8 +297,8 @@ pub fn check_unique<N: NodeLike>(
     blocks: &[Named<'_, N>],
     sources: &SourceMap,
 ) -> Result<(), Error> {
-    let mut seen: std::collections::HashMap<&str, &Named<'_, N>> =
-        std::collections::HashMap::with_capacity(blocks.len());
+    let mut seen: alloc::collections::BTreeMap<&str, &Named<'_, N>> =
+        alloc::collections::BTreeMap::new();
     for block in blocks {
         if let Some(first) = seen.insert(block.name, block) {
             let kind = block.node.node_name();
@@ -344,6 +350,7 @@ pub fn walk<'a, D: Doc>(doc: &'a D, mut f: impl FnMut(&[&'a D::Node], &'a D::Nod
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::string::ToString;
 
     fn load(s: &str) -> (Document<'_>, SourceMap) {
         let mut sources = SourceMap::new();

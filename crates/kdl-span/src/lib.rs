@@ -25,10 +25,14 @@
 //! assert_eq!(map.file(a).name(), "a.kdl");
 //! ```
 
+#![no_std]
+
 extern crate alloc;
 
+use alloc::{boxed::Box, format, string::String, vec, vec::Vec};
+
 use alloc::sync::Arc;
-use std::sync::OnceLock;
+use once_cell::race::OnceBox;
 
 #[cfg(doctest)]
 #[doc = include_str!("../README.md")]
@@ -131,7 +135,7 @@ pub struct SourceFile {
     text: Arc<str>,
     base: usize,
     /// Byte offsets of line starts, computed on first use.
-    lines: OnceLock<Vec<usize>>,
+    lines: OnceBox<Vec<usize>>,
 }
 
 impl SourceFile {
@@ -162,9 +166,11 @@ impl SourceFile {
 
     fn line_starts(&self) -> &[usize] {
         self.lines.get_or_init(|| {
-            core::iter::once(0)
-                .chain(self.text.match_indices('\n').map(|(i, _)| i + 1))
-                .collect()
+            Box::new(
+                core::iter::once(0)
+                    .chain(self.text.match_indices('\n').map(|(i, _)| i + 1))
+                    .collect(),
+            )
         })
     }
 
@@ -235,7 +241,7 @@ impl SourceMap {
             name: name.into(),
             text,
             base,
-            lines: OnceLock::new(),
+            lines: OnceBox::new(),
         }));
         id
     }

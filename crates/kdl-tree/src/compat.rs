@@ -1,6 +1,6 @@
 //! Conversions to and from `kdl`'s document tree (the `kdl` feature).
 
-use alloc::borrow::Cow;
+use alloc::borrow::{Cow, ToOwned};
 
 use kdl::{KdlDocument, KdlEntry, KdlIdentifier, KdlNode, KdlValue};
 

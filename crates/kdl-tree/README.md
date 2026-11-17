@@ -6,6 +6,7 @@ A fast [KDL v2](https://kdl.dev) parser into a borrowed document tree with
 a byte span on every node, name, type annotation, entry, property key,
 value and children block. Its only dependency is `thiserror`. The optional
 `kdl` feature converts to and from [`kdl::KdlDocument`](https://docs.rs/kdl).
+Without it the crate is `#![no_std]` and needs only `alloc`.
 
 ```rust
 let doc = kdl_tree::Document::parse(r#"server "api" port=8080"#).unwrap();
