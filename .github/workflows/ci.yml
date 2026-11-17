@@ -66,8 +66,8 @@ jobs:
       # README and API examples (several READMEs are included as crate docs).
       - run: cargo test --workspace --all-features --doc --locked
 
-  features:
-    name: per-crate features
+  no-std-build:
+    name: no_std build (thumbv7em-none-eabihf)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -78,7 +78,34 @@ jobs:
           targets: thumbv7em-none-eabihf
       - uses: Swatinem/rust-cache@v2
       - name: no_std crates on a bare-metal target
-        run: cargo build -p kdl-tree -p kdl-span -p kdl-nodes --no-default-features --target thumbv7em-none-eabihf --locked
+        run: cargo build --workspace --exclude kdl-pretty --exclude kdl-pretty-cli --exclude kdl-serde --no-default-features --target thumbv7em-none-eabihf --locked
+
+  no-std-test:
+    name: no_std tests (host)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # dtolnay/rust-toolchain master @ 2026-10-16; installs env.RUST_TOOLCHAIN (1.98.1)
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      # The no_std crates together without default features, so the
+      # non-std code paths and cfg gates are linted and tested.
+      - run: cargo clippy --workspace --exclude kdl-pretty --exclude kdl-pretty-cli --exclude kdl-serde --all-targets --no-default-features --locked -- -D warnings
+      - run: cargo test --workspace --exclude kdl-pretty --exclude kdl-pretty-cli --exclude kdl-serde --no-default-features --locked
+
+  features:
+    name: per-crate features
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # dtolnay/rust-toolchain master @ 2026-10-16; installs env.RUST_TOOLCHAIN (1.98.1)
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: Swatinem/rust-cache@v2
       - name: each crate without default features
         run: |
           for p in kdl-tree kdl-span kdl-load kdl-nodes kdl-pretty kdl-pretty-cli kdl-serde; do

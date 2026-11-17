@@ -65,9 +65,18 @@ Reading goes through `kdl-tree`, which parses 19× to 47× faster than the
 
 | Feature | Crates | Default | Effect |
 | --- | --- | --- | --- |
-| `parallel` | kdl-load, kdl-serde | on | Read and parse directory files on rayon's thread pool |
+| `std` | kdl-load | on | File and directory loading and `Error::Io` (off: `no_std`, `load_str` only) |
+| `parallel` | kdl-load, kdl-serde | on | Read and parse directory files on rayon's thread pool (implies `std` in kdl-load) |
 | `miette` | kdl-span, kdl-load, kdl-nodes, kdl-serde | off | `miette::Diagnostic` impls for the error types |
 | `kdl` | kdl-tree | off | Conversions to and from `kdl::KdlDocument` |
+
+## no_std
+
+kdl-tree, kdl-span, kdl-nodes and kdl-load are `no_std` (with `alloc`);
+CI builds them without default features for `thumbv7em-none-eabihf`.
+kdl-load's default `std` feature gates its file and directory loaders and
+`Error::Io`; without it, `load_str` remains. The `miette` and `kdl`
+features need std. kdl-pretty, kdl-pretty-cli and kdl-serde need std.
 
 ## MSRV
 

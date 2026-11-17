@@ -13,7 +13,13 @@
 //! With the default `parallel` feature, files are read and parsed on
 //! rayon's thread pool; the merge order is always the sorted path order.
 //!
+//! The crate is `no_std` (with `alloc`) without its default `std` feature:
+//! [`load_str`] and the types stay; the file and directory loaders and
+//! `Error::Io` need `std`.
+//!
 //! ```
+//! # #[cfg(not(feature = "std"))] fn main() {}
+//! # #[cfg(feature = "std")]
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let dir = tempfile::tempdir()?;
 //! # std::fs::write(dir.path().join("a.kdl"), "member ada")?;
@@ -28,12 +34,23 @@
 //! # }
 //! ```
 
-extern crate alloc;
+#![no_std]
 
+extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
+
+use alloc::borrow::ToOwned;
+use alloc::string::String;
+#[cfg(feature = "std")]
+use alloc::string::ToString;
 use alloc::sync::Arc;
+use alloc::vec;
+use alloc::vec::Vec;
+#[cfg(feature = "std")]
 use std::path::{Path, PathBuf};
 
-#[cfg(doctest)]
+#[cfg(all(doctest, feature = "std"))]
 #[doc = include_str!("../README.md")]
 struct ReadmeDoctests;
 
@@ -72,7 +89,9 @@ impl Loaded {
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
-    /// Reading a file or listing a directory failed.
+    /// Reading a file or listing a directory failed. Needs the `std`
+    /// feature.
+    #[cfg(feature = "std")]
     #[error("cannot read {}: {source}", path.display())]
     Io {
         /// The file or directory.
@@ -90,6 +109,7 @@ impl Error {
     /// The stable error code: `kdl_load::io` or `kdl_load::parse`.
     pub fn code(&self) -> &'static str {
         match self {
+            #[cfg(feature = "std")]
             Self::Io { .. } => "kdl_load::io",
             Self::Parse(_) => "kdl_load::parse",
         }
@@ -176,6 +196,8 @@ impl ParseError {
 #[cfg(feature = "miette")]
 mod diagnostic {
     use super::{Error, ParseError};
+    use alloc::boxed::Box;
+    use alloc::format;
     use core::fmt::Display;
     use miette::{Diagnostic, LabeledSpan, SourceCode};
 
@@ -196,6 +218,7 @@ mod diagnostic {
         fn source_code(&self) -> Option<&dyn SourceCode> {
             match self {
                 Self::Parse(e) => e.source_code(),
+                #[cfg(feature = "std")]
                 Self::Io { .. } => None,
             }
         }
@@ -203,6 +226,7 @@ mod diagnostic {
         fn labels(&self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + '_>> {
             match self {
                 Self::Parse(e) => e.labels(),
+                #[cfg(feature = "std")]
                 Self::Io { .. } => None,
             }
         }
@@ -210,6 +234,7 @@ mod diagnostic {
         fn help<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
             match self {
                 Self::Parse(e) => e.help(),
+                #[cfg(feature = "std")]
                 Self::Io { .. } => None,
             }
         }
@@ -217,6 +242,7 @@ mod diagnostic {
         fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn Diagnostic> + 'a>> {
             match self {
                 Self::Parse(e) => e.related(),
+                #[cfg(feature = "std")]
                 Self::Io { .. } => None,
             }
         }
@@ -256,11 +282,13 @@ pub fn load_str(name: &str, text: impl Into<Arc<str>>) -> Result<Loaded, Error> 
     Ok(Loaded::new(tree, sources))
 }
 
+#[cfg(feature = "std")]
 /// Loads one file.
 pub fn load_file(path: impl AsRef<Path>) -> Result<Loaded, Error> {
     load_files([path.as_ref().to_owned()])
 }
 
+#[cfg(feature = "std")]
 /// Loads a file, or a directory as [`load_dir`] does.
 pub fn load_path(path: impl AsRef<Path>, recursive: bool) -> Result<Loaded, Error> {
     let path = path.as_ref();
@@ -275,6 +303,7 @@ pub fn load_path(path: impl AsRef<Path>, recursive: bool) -> Result<Loaded, Erro
     }
 }
 
+#[cfg(feature = "std")]
 /// Loads every `*.kdl` file in `dir` (and its subdirectories when
 /// `recursive`), sorted by path, as one document.
 pub fn load_dir(dir: impl AsRef<Path>, recursive: bool) -> Result<Loaded, Error> {
@@ -284,6 +313,7 @@ pub fn load_dir(dir: impl AsRef<Path>, recursive: bool) -> Result<Loaded, Error>
     load_files(files)
 }
 
+#[cfg(feature = "std")]
 /// The `*.kdl` files in `dir` (recursively or not), sorted by path.
 pub fn kdl_files(dir: impl AsRef<Path>, recursive: bool) -> Result<Vec<PathBuf>, Error> {
     let mut files = Vec::new();
@@ -292,6 +322,7 @@ pub fn kdl_files(dir: impl AsRef<Path>, recursive: bool) -> Result<Vec<PathBuf>,
     Ok(files)
 }
 
+#[cfg(feature = "std")]
 fn list_kdl_files(dir: &Path, recursive: bool, out: &mut Vec<PathBuf>) -> Result<(), Error> {
     let io = |path: &Path| {
         let path = path.to_owned();
@@ -312,6 +343,7 @@ fn list_kdl_files(dir: &Path, recursive: bool, out: &mut Vec<PathBuf>) -> Result
     Ok(())
 }
 
+#[cfg(feature = "std")]
 /// Loads the given files, in the given order, as one document.
 pub fn load_files(paths: impl IntoIterator<Item = PathBuf>) -> Result<Loaded, Error> {
     let paths: Vec<PathBuf> = paths.into_iter().collect();
@@ -337,7 +369,7 @@ pub fn load_files(paths: impl IntoIterator<Item = PathBuf>) -> Result<Loaded, Er
     Ok(Loaded::new(merged, sources))
 }
 
-#[cfg(feature = "parallel")]
+#[cfg(all(feature = "std", feature = "parallel"))]
 fn map_maybe_parallel<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync + Send) -> Vec<R> {
     use rayon::prelude::*;
     if items.len() < 2 {
@@ -346,7 +378,7 @@ fn map_maybe_parallel<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync 
     items.par_iter().map(f).collect()
 }
 
-#[cfg(not(feature = "parallel"))]
+#[cfg(all(feature = "std", not(feature = "parallel")))]
 fn map_maybe_parallel<T, R>(items: &[T], f: impl Fn(&T) -> R) -> Vec<R> {
     items.iter().map(f).collect()
 }
@@ -363,6 +395,21 @@ fn parse(file: &Arc<SourceFile>) -> Result<Document<'static>, Error> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn load_str_resolves_spans() {
+        let loaded = load_str("a.kdl", "x 1\n  y 2").unwrap();
+        let y = &loaded.tree().nodes()[1];
+        let span = loaded.sources().node_name(y).unwrap();
+        let file = loaded.sources().file(span.file);
+        assert_eq!(file.name(), "a.kdl");
+        assert_eq!(file.line_col(span.offset), (2, 3));
+        let Err(Error::Parse(e)) = load_str("", "bad {") else {
+            panic!("expected a parse error")
+        };
+        assert_eq!(e.code(), "kdl_load::parse");
+    }
+
+    #[cfg(feature = "std")]
     #[test]
     fn spans_resolve_to_their_file() {
         let dir = tempfile::tempdir().unwrap();
@@ -396,6 +443,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn parse_errors_name_the_file() {
         let dir = tempfile::tempdir().unwrap();
@@ -410,6 +458,7 @@ mod tests {
         assert_eq!(e.problems()[0].label.span.offset, 4);
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn missing_dir_is_io() {
         let e = load_dir("/nonexistent/kdl-load-test", true).unwrap_err();

@@ -20,7 +20,7 @@ exclude = ["tests/error_codes.rs"]
 kdl.workspace = true
 kdl-tree = { workspace = true, features = ["kdl"] }
 kdl-span.workspace = true
-kdl-load.workspace = true
+kdl-load = { workspace = true, features = ["std"] }
 kdl-nodes.workspace = true
 kdl-pretty.workspace = true
 serde.workspace = true
