@@ -21,8 +21,11 @@ miette = { workspace = true, optional = true }
 rayon = { workspace = true, optional = true }
 
 [features]
-default = ["parallel"]
-parallel = ["dep:rayon"]
+default = ["std", "parallel"]
+# File and directory loading and `Error::Io`; without it the crate is
+# `no_std` + `alloc` and only `load_str` remains.
+std = []
+parallel = ["std", "dep:rayon"]
 miette = ["dep:miette", "kdl-span/miette"]
 
 [lints]

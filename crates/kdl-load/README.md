@@ -12,7 +12,14 @@ own range of the global offset space, so spans need no fixing up afterwards.
 With the default `parallel` feature, files are read and parsed on rayon's
 thread pool; the merge order stays the same.
 
+kdl-load is `no_std` (with `alloc`) when built without default features:
+`load_str` and the types remain. The default `std` feature gates the file
+and directory loaders (`load_file`, `load_path`, `load_dir`, `load_files`,
+`kdl_files`) and `Error::Io`; `parallel` (rayon) implies `std`.
+
 ```rust
+# #[cfg(not(feature = "std"))] fn main() {}
+# #[cfg(feature = "std")]
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
 # let dir = tempfile::tempdir()?;
 # std::fs::write(dir.path().join("a.kdl"), "member ada")?;
