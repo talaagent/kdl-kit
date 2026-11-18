@@ -316,7 +316,7 @@ fn custom_error_points_at_the_node() {
 fn unsupported() {
     let e = kdl_serde::to_string(&BTreeMap::from([("a", u128::MAX)])).unwrap_err();
     assert_eq!(e.code(), "kdl_serde::unsupported");
-    assert!(e.labels().is_empty());
+    assert_eq!(e.labels(), []);
     insta::assert_snapshot!(render(&e));
 }
 

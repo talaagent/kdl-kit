@@ -40,7 +40,7 @@ fn stdin_to_stdout() {
 fn stdin_check() {
     let out = run(&["--check"], MESSY);
     assert_eq!(out.status.code(), Some(1));
-    assert!(out.stdout.is_empty());
+    assert_eq!(out.stdout, b"");
     assert_eq!(run(&["--check"], TIDY).status.code(), Some(0));
 }
 
