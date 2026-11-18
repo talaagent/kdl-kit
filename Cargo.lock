@@ -273,7 +273,7 @@ dependencies = [
 
 [[package]]
 name = "kdl-load"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "kdl-span",
  "kdl-tree",
@@ -285,7 +285,7 @@ dependencies = [
 
 [[package]]
 name = "kdl-nodes"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "kdl-load",
  "kdl-span",
@@ -296,7 +296,7 @@ dependencies = [
 
 [[package]]
 name = "kdl-pretty"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "kdl",
  "proptest",
@@ -304,7 +304,7 @@ dependencies = [
 
 [[package]]
 name = "kdl-pretty-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "kdl",
@@ -316,7 +316,7 @@ dependencies = [
 
 [[package]]
 name = "kdl-serde"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "divan",
  "insta",
@@ -335,7 +335,7 @@ dependencies = [
 
 [[package]]
 name = "kdl-span"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "kdl-tree",
  "miette",
@@ -344,7 +344,7 @@ dependencies = [
 
 [[package]]
 name = "kdl-tree"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "divan",
  "kdl",

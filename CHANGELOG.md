@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/talaagent/kdl-kit/compare/v0.1.0...v0.1.1) - 2026-11-18
+
+### Added
+
+- *(kdl-load)* no_std + alloc, with file loading behind a default std feature ([#3](https://github.com/talaagent/kdl-kit/pull/3))
+- no_std + alloc for kdl-tree, kdl-span and kdl-nodes ([#1](https://github.com/talaagent/kdl-kit/pull/1))
+
+### Other
+
+- Rust 1.100.0 ([#4](https://github.com/talaagent/kdl-kit/pull/4))
+
 ## [0.1.0](https://github.com/talaagent/kdl-kit/releases/tag/v0.1.0) - 2026-11-15
 
 First release. All crates share one version.
