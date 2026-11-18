@@ -1,0 +1,37 @@
+#:schema https://raw.githubusercontent.com/talaagent/cargo-faster/main/docs/cargo-faster.schema.json
+# Reference: https://github.com/talaagent/cargo-faster/blob/main/docs/cargo-faster.md#the-configuration-file
+
+# Most-edited crates over the last 6 months (git log): kdl-serde 138 file
+# changes, kdl-tree 37, kdl-pretty 24.
+hot = ["kdl-serde", "kdl-tree", "kdl-pretty"]
+
+[[layer]]
+crates = ["*"]
+must_not_depend_on = ["tala-*"]
+reason = "a standalone public library; tala-agent depends on it, never the reverse"
+
+[[layer]]
+crates = ["kdl-tree", "kdl-span", "kdl-load", "kdl-nodes"]
+must_not_depend_on = ["kdl", "kdl-pretty", "kdl-pretty-cli", "kdl-serde"]
+reason = "AGENTS.md: the no_std, MSRV 1.85 crates stay free of `kdl` (only behind kdl-tree's optional `kdl` feature)"
+
+[[layer]]
+crates = ["kdl-tree", "kdl-span", "kdl-load", "kdl-nodes", "kdl-pretty", "kdl-pretty-cli"]
+must_not_depend_on = ["serde", "serde_*"]
+reason = "AGENTS.md: only kdl-serde may depend on serde"
+
+# Measured 2026-11-18 with `cargo faster check --timings`, run twice, larger
+# value kept: cold check 22.5s / 7.3s, edit kdl-serde 1.9s / 1.0s, kdl-tree
+# 4.7s / 2.7s, kdl-pretty 3.2s / 1.9s; critical path kdl-tree → kdl-span →
+# kdl-nodes|kdl-load → kdl-serde (4 crates); 3 duplicate versions.
+# Machine: shared 32-core dev box (load ~190%), cold, `nix develop`.
+# Budgets are the measurements × 1.25, rounded up.
+[budgets]
+cold_check_secs = 29
+edit_rebuild_secs = { kdl-serde = 3, kdl-tree = 6, kdl-pretty = 4 }
+critical_path_max_crates = 5
+no_new_critical_crates = ["kdl-tree", "kdl-span", "kdl-nodes", "kdl-load", "kdl-serde"]
+max_duplicate_versions = 4
+
+[env]
+nextest_profile = "ci"

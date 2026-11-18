@@ -48,6 +48,7 @@ jobs:
       # --all-targets includes the divan benches.
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      # - run: cargo faster check   # enable once cargo-faster >= 0.1.0 is on crates.io (needs talaagent/cargo-faster#88)
 
   test:
     name: test
